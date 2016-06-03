@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+	"time"
 	// "net/url"
 	"net/http"
 )
@@ -26,29 +27,20 @@ func (plug *PlugDJ) authenticateUser() error {
 	}
 
 	// non authenticated requests contain a little js snippet
-	// beginning with: var _csrf="<60 char token"
+	// beginning with: var _csrf="<60 char token>""
 	// we need to use this for all future requests
-	var csrf string
-
-	// we use a scanner so we don't have to read it all at once
-	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
-		text := scanner.Text()
-
-		if pos := strings.Index(text, `_csrf="`); pos != -1 {
-			csrf = text[pos+7 : pos+67] // get 60 characters, skipping the search term
-			break                       // no longer need to scan now we've found the token!
-		}
-	}
-
-	// scans stop on error or file finish. let's check for an error
-	if err := scanner.Err(); err != nil {
+	// we use scanPrefixes so ve can deal with vis
+	csrfPrefix := "var _csrf"
+	results, err := scanPrefixes(resp.Body, csrfPrefix)
+	if err != nil {
 		return err
 	}
+	csrf := results[csrfPrefix] // get it outta the map
 
-	// still default value, so could not find the csrf token
-	if csrf == "" {
-		return errors.New("dubapi: could not obtain csrf token")
+	// check token length for some validity
+	if len(csrf) != 60 {
+		plug.Log.WithField("_csrf", csrf).Error("csrf token malformed")
+		return errors.New("dubapi: csrf token is malformed")
 	}
 	plug.Log.WithField("_csrf", csrf).Info("found csrf token")
 
@@ -78,6 +70,63 @@ func (plug *PlugDJ) authenticateUser() error {
 	return nil
 }
 
+// scanPrefixes searches a Reader for variables (well, prefixes)
+// and returns a map with the variable name (prefix name) as key
+// and the result as the value (result must be enclosed in quotes in the reader)
+func scanPrefixes(reader io.Reader, variables ...string) (map[string]string, error) {
+	variablesLeft := len(variables)
+	variablesFound := map[string]string{}
+
+	// we use a scanner so we don't have to read it all at once
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		text := scanner.Text()
+
+		// We go through all the variables, checking if it is in this line
+		for _, varName := range variables {
+			startPos := strings.Index(text, varName+`="`)
+			if startPos == -1 {
+				continue
+			}
+
+			// add the variable length and the `="` to the start
+			startPos += len(varName) + 2
+
+			// awesome. so we found the start point!
+			// now we find the endPoint...
+			endPos := strings.Index(text[startPos+1:], `"`)
+			if endPos == -1 {
+				// we should always find an end-quote on the same line...
+				return nil, errors.New("plugapi: could not find end token for variable " + varName)
+			}
+
+			// add it to the map
+			variablesFound[varName] = text[startPos : startPos+endPos+1]
+			variablesLeft-- // decrement our counter
+
+			if variablesLeft == 0 {
+				// break out if we're done finding stuff
+				// we use a goto to avoid two checks and breaks (ugly)
+				goto FinishedSearching
+			}
+		}
+	}
+
+FinishedSearching:
+	// scans stop on error or file finish. let's check for an error
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// goto is useless because we need an extra check here anyway
+	// this returns the actual map if everything was ok
+	if variablesLeft == 0 {
+		return variablesFound, nil
+	}
+
+	return nil, errors.New("plugapi: could not find all variables")
+}
+
 func quickread(reader io.ReadCloser) {
 	b, _ := ioutil.ReadAll(reader)
 	fmt.Printf("%s\n", b)
@@ -87,11 +136,51 @@ func (plug *PlugDJ) connectSocket() error {
 	// Socket connections depend on a few things from plug:
 	// - the actual socket url (_gws)
 	// - the server time (_st)
-	// - the ???? (_jm)
-	// This works in a similar way to getting our csrf token
-	// in authenticateUser above!
+	// - the ??some??sort??of??authorization??code?? (_jm)
+	// This works in the same way as getting our csrf token
+	// but with different prefixes
+
 	// Let's go ahead and grab that!
-	// plug.web.Get(url)
+	resp, err := plug.web.Get(plug.config.BaseURL)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	variables, err := scanPrefixes(resp.Body, ",_gws", ",_jm", ",_st")
+	if err != nil {
+		return err
+	}
+
+	// We'll use this later
+	plug.authCode = variables[",jm"]
+
+	// We don't want to override any forced socket urls...
+	if plug.config.SocketURL == "" {
+		plug.config.SocketURL = variables[",gws"]
+	}
+
+	// Now we want to also store a time offset because
+	// one of us (bot or plug) are ahead of each other
+
+	// Format of the time used (manually composed)
+	// see: https://golang.org/src/time/format.go
+	format := "2006-01-02 15:04:05.000000"
+	theirTime, err := time.Parse(format, variables[",_st"])
+	if err != nil {
+		plug.Log.WithField("_st", variables[",_st"]).Warnln("could not parse correctly")
+		return errors.New("plugapi: could not parse _st correctly")
+	}
+
+	// offset the time, store it in seconds
+	// note: Seconds() returns a float, and int() truncates it
+	offset := int(time.Now().Sub(theirTime).Seconds())
+
+	// plugdj runs in their own timezone... valve time
+	// now we can use this Location to handle times
+	// correctly everywhere on our bot
+	plug.location = time.FixedZone("plugdj", offset)
+
 	return errors.New("not implemented yet!")
 }
 

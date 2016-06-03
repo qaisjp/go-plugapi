@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"time"
 	// "strings"
 )
 
@@ -23,14 +24,16 @@ type PlugDJ struct {
 	web                 *http.Client
 	authCode            string
 	currentlyConnecting bool
+	location            *time.Location
 }
 
 // Config is the configuration for logging into plug
 type Config struct {
-	Email    string
-	Password string
-	BaseURL  string
-	Log      *log.Logger
+	Email     string
+	Password  string
+	BaseURL   string
+	SocketURL string
+	Log       *log.Logger
 }
 
 // New returns an authenticated User
