@@ -29,6 +29,10 @@ type PlugDJ struct {
 	location            *time.Location
 
 	closer chan struct{}
+
+	// only used once in sockets.go to determine
+	// whether WS server authentication succeeded
+	ack chan error
 }
 
 // Config is the configuration for logging into plug

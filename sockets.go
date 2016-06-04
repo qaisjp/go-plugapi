@@ -6,15 +6,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"net/http"
-	"strconv"
+	// "strconv"
 	"time"
 )
-
-type Message struct {
-	Action    string      `json:"a"`
-	Parameter interface{} `json:"p"`
-	Time      int64       `json:"t"`
-}
 
 func (plug *PlugDJ) connectSocket() error {
 	// Socket connections depend on a few things from plug:
@@ -98,8 +92,8 @@ func (plug *PlugDJ) connectSocket() error {
 	plug.wss = wss
 
 	// start listening
-	ack := make(chan error)
-	go plug.listen(ack)
+	plug.ack = make(chan error)
+	go plug.listen()
 
 	// Now we try to authenticate with our auth code...
 	plug.Log.Debugln("Authenticating with our websocket...")
@@ -111,7 +105,7 @@ func (plug *PlugDJ) connectSocket() error {
 
 	select {
 	// wait until we have successfully authenticated
-	case err, failed := <-ack:
+	case err, failed := <-plug.ack:
 		if failed {
 			return err
 		}
@@ -133,7 +127,7 @@ func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
 	return plug.wss.WriteJSON(body)
 }
 
-func (plug *PlugDJ) listen(ack chan error) {
+func (plug *PlugDJ) listen() {
 	wss := plug.wss
 	defer wss.Close()
 	defer close(plug.closer)
@@ -142,6 +136,7 @@ func (plug *PlugDJ) listen(ack chan error) {
 		if err != nil {
 			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				plug.Log.Errorln("socket read error:", err)
+				// TODO: Should we attempt to re-establish a connection?
 			}
 			return
 		}
@@ -151,38 +146,19 @@ func (plug *PlugDJ) listen(ack chan error) {
 			continue
 		}
 
-		var messages []Message
-		err = json.Unmarshal(data, &messages)
+		// for some reason the server may send multiple messages
+		var messages []*Message
 
+		// read the array sent
+		err = json.Unmarshal(data, &messages)
 		if err != nil {
 			plug.Log.WithField("data", string(data)).Warnf("ws: could not unmarshal>> %s\n", err)
 			continue
 		}
 
-		if len(messages) != 1 {
-			plug.Log.WithField("messages", messages).Fatalln("multiple messages received")
-			panic("Fatalln above")
-		}
-
-		message := messages[0]
-		plug.Log.WithFields(log.Fields{"message": message, "data": string(data)}).Println("ws: recv")
-
-		if message.Action == "ack" {
-			param, ok := message.Parameter.(string)
-			if !ok {
-				ack <- errors.New("ws: 'ack' > p is not a string")
-				continue
-			}
-
-			if param, err := strconv.Atoi(string(param)); err != nil {
-				plug.Log.WithField("error", err).Warnln("could not read 'ack' param value")
-				ack <- errors.New("ws: 'ack' > Parameter not integer")
-			} else if param == 1 {
-				close(ack)
-			} else {
-				plug.Log.WithField("Param", param).Warnln("Parameter is not equal 1")
-				ack <- errors.New("ws: ack > Parameter not 1")
-			}
+		// parse each individual message sent by the server
+		for _, msg := range messages {
+			go handleAction(plug, msg)
 		}
 	}
 }
