@@ -7,6 +7,7 @@ import (
 	"errors"
 	// "encoding/hex"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -22,9 +23,12 @@ type PlugDJ struct {
 	Log    *log.Logger
 
 	web                 *http.Client
+	wss                 *websocket.Conn
 	authCode            string
 	currentlyConnecting bool
 	location            *time.Location
+
+	closer chan struct{}
 }
 
 // Config is the configuration for logging into plug
@@ -59,6 +63,9 @@ func New(config Config) (*PlugDJ, error) {
 
 	plug := &PlugDJ{config: &config, Log: config.Log}
 
+	// a closer so that we can close any goroutines we have created
+	plug.closer = make(chan struct{})
+
 	// was this just used to uniquely get a fucking jar?!
 	// hash := sha512.Sum512([]byte(config.Email + config.Password))
 	// cookieHash := hex.EncodeToString(hash[:])
@@ -77,6 +84,34 @@ func New(config Config) (*PlugDJ, error) {
 
 	plug.Log.Info("Running go-plugapi")
 	return plug, nil
+}
+
+func (plug *PlugDJ) Close() {
+	plug.Log.Debugln("plugapi will now close")
+
+	if plug.wss != nil {
+		// To cleanly close a connection, a client should send a close
+		// frame and wait for the server to close the connection.
+		err := plug.wss.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		if err != nil {
+			plug.Log.Println("write close:", err)
+			return
+		}
+
+		select {
+		// Our socket ticker will receive an error
+		// the ticker will write to plug.closer when the
+		// error is a "CloseNormalClosure" error
+		case <-plug.closer:
+			plug.Log.Debugln("sockets closed successfully")
+		// As a backup, we wait a second instead.
+		case <-time.After(time.Second):
+			plug.Log.Warnln("sockets took too long to close")
+		}
+
+		// Now we close our clientside connection
+		plug.wss.Close()
+	}
 }
 
 func (plug *PlugDJ) JoinRoom(slug string) error {
@@ -116,6 +151,7 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	}
 
 	// TODO: Should this be queued?
+	plug.Log.Debugln("Joining room...")
 	resp, err := plug.Post(RoomJoinEndpoint, map[string]string{"slug": slug})
 	if err != nil {
 		return err

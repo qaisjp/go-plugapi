@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	// log "github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/websocket"
 	"io"
 	"io/ioutil"
+	"net/http"
+	// "strconv"
 	"strings"
 	"time"
 	// "net/url"
-	"net/http"
 )
 
 func (plug *PlugDJ) authenticateUser() error {
@@ -42,7 +44,7 @@ func (plug *PlugDJ) authenticateUser() error {
 		plug.Log.WithField("_csrf", csrf).Error("csrf token malformed")
 		return errors.New("dubapi: csrf token is malformed")
 	}
-	plug.Log.WithField("_csrf", csrf).Info("found csrf token")
+	plug.Log.WithField("_csrf", csrf).Debugln("found csrf token")
 
 	plug.Log.Info("Attempting to log in...")
 
@@ -132,6 +134,12 @@ func quickread(reader io.ReadCloser) {
 	fmt.Printf("%s\n", b)
 }
 
+type Message struct {
+	Action    string      `json:"a"`
+	Parameter interface{} `json:"p"`
+	Time      int         `json:"t"`
+}
+
 func (plug *PlugDJ) connectSocket() error {
 	// Socket connections depend on a few things from plug:
 	// - the actual socket url (_gws)
@@ -153,20 +161,31 @@ func (plug *PlugDJ) connectSocket() error {
 	}
 
 	// We'll use this later
-	plug.authCode = variables[",jm"]
+	var ok bool
+	plug.authCode, ok = variables[",_jm"]
+	if !ok {
+		panic("impossible situation - check variables map key")
+	}
 
 	// We don't want to override any forced socket urls...
 	if plug.config.SocketURL == "" {
-		plug.config.SocketURL = variables[",gws"]
+		plug.config.SocketURL, ok = variables[",_gws"]
+		if !ok {
+			panic("impossible situation - check variables map key")
+		}
 	}
 
 	// Now we want to also store a time offset because
 	// one of us (bot or plug) are ahead of each other
+	timeStr, ok := variables[",_st"]
+	if !ok {
+		panic("impossible situation - check variables map key")
+	}
 
 	// Format of the time used (manually composed)
 	// see: https://golang.org/src/time/format.go
 	format := "2006-01-02 15:04:05.000000"
-	theirTime, err := time.Parse(format, variables[",_st"])
+	theirTime, err := time.Parse(format, timeStr)
 	if err != nil {
 		plug.Log.WithField("_st", variables[",_st"]).Warnln("could not parse correctly")
 		return errors.New("plugapi: could not parse _st correctly")
@@ -175,13 +194,73 @@ func (plug *PlugDJ) connectSocket() error {
 	// offset the time, store it in seconds
 	// note: Seconds() returns a float, and int() truncates it
 	offset := int(time.Now().Sub(theirTime).Seconds())
+	plug.Log.WithField("offset", offset).Debugln("Received time offset from plug.dj server")
+	// fmt.Println(time.Now(), theirTime)
 
 	// plugdj runs in their own timezone... valve time
 	// now we can use this Location to handle times
 	// correctly everywhere on our bot
 	plug.location = time.FixedZone("plugdj", offset)
 
-	return errors.New("not implemented yet!")
+	// make a header with our origin...
+	header := make(http.Header)
+	header.Set("Origin", plug.config.BaseURL)
+	plug.Log.WithField("baseURL", plug.config.BaseURL).Debugln("header.Origin")
+
+	// try to dial a connection to the websocket
+	plug.Log.Debugln("Dialing websocket...")
+	wss, _, err := websocket.DefaultDialer.Dial(plug.config.SocketURL, header)
+	if err != nil {
+		plug.Log.WithFields(log.Fields{
+			"socketURL": plug.config.SocketURL,
+			"baseURL":   plug.config.BaseURL,
+		}).Fatalf("websocket.Dial encountered error>> %s", err)
+		return err
+	}
+
+	// add the websocket to the plug obj
+	plug.wss = wss
+
+	// start listening
+	go func() {
+		defer wss.Close()
+		defer close(plug.closer)
+		for {
+			_, message, err := wss.ReadMessage()
+			if err != nil {
+				if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+					plug.Log.Errorln("socket read error:", err)
+				}
+				return
+			}
+
+			// ignore messages
+			if (len(message) > 0) && (message[0] != 'h') {
+				plug.Log.Printf("recv: %s", message)
+			}
+		}
+	}()
+
+	// Now we try to authenticate with our auth code...
+	plug.Log.Debugln("Authenticating with our websocket...")
+	err = plug.sendSocketJSON("auth", plug.authCode)
+	if err != nil {
+		plug.Log.Warnf("Failed to authenticate with our websocket >> %s\n", err)
+		return err
+	}
+
+	return nil
+}
+
+func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
+	body := map[string]interface{}{
+		"a": action,
+		"p": data,
+		"t": time.Now().In(plug.location).Unix(), // NOTE: NEEDS TO BE NUMBER NOT STRING
+	}
+
+	plug.Log.WithField("body", body).Debugln("Sending WS data")
+	return plug.wss.WriteJSON(body)
 }
 
 // Get information about ourselves
