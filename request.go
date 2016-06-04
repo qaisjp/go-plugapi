@@ -137,7 +137,7 @@ func quickread(reader io.ReadCloser) {
 type Message struct {
 	Action    string      `json:"a"`
 	Parameter interface{} `json:"p"`
-	Time      int         `json:"t"`
+	Time      int64       `json:"t"`
 }
 
 func (plug *PlugDJ) connectSocket() error {
@@ -253,10 +253,10 @@ func (plug *PlugDJ) connectSocket() error {
 }
 
 func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
-	body := map[string]interface{}{
-		"a": action,
-		"p": data,
-		"t": time.Now().In(plug.location).Unix(), // NOTE: NEEDS TO BE NUMBER NOT STRING
+	body := Message{
+		Action:    action,
+		Parameter: data,
+		Time:      time.Now().In(plug.location).Unix(), // NOTE: NEEDS TO BE NUMBER NOT STRING
 	}
 
 	plug.Log.WithField("body", body).Debugln("Sending WS data")
