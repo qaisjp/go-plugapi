@@ -20,7 +20,8 @@ func (plug *PlugDJ) connectSocket() error {
 	// Socket connections depend on a few things from plug:
 	// - the actual socket url (_gws)
 	// - the server time (_st)
-	// - the ??some??sort??of??authorization??code?? (_jm)
+	// - the passcode allowing us to authenticate
+	//   with the socket server (_jm)
 	// This works in the same way as getting our csrf token
 	// but with different prefixes
 

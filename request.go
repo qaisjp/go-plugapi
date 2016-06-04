@@ -131,6 +131,21 @@ func quickread(reader io.ReadCloser) {
 	fmt.Printf("%s\n", b)
 }
 
+// Post makes a post request with the map provided as json
+func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Response, error) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := plug.web.Post(plug.config.BaseURL+"/_"+endpoint, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 // Get information about ourselves
 // func (c *apiClient) loadSession() error {
 // 	endpoint := ""
@@ -174,21 +189,6 @@ func quickread(reader io.ReadCloser) {
 
 // 	return resp, err
 // }
-
-// Post makes a post request with the map provided as json
-func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Response, error) {
-	body, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := plug.web.Post(plug.config.BaseURL+"/_"+endpoint, "application/json", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
 
 // GetData allows you to receive info as a struct
 // func (c *http.Client) GetData(endpoint string, v interface{}) error {
