@@ -11,7 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	// "strconv"
+	"strconv"
 	"strings"
 	"time"
 	// "net/url"
@@ -205,7 +205,6 @@ func (plug *PlugDJ) connectSocket() error {
 	// make a header with our origin...
 	header := make(http.Header)
 	header.Set("Origin", plug.config.BaseURL)
-	plug.Log.WithField("baseURL", plug.config.BaseURL).Debugln("header.Origin")
 
 	// try to dial a connection to the websocket
 	plug.Log.Debugln("Dialing websocket...")
@@ -222,24 +221,8 @@ func (plug *PlugDJ) connectSocket() error {
 	plug.wss = wss
 
 	// start listening
-	go func() {
-		defer wss.Close()
-		defer close(plug.closer)
-		for {
-			_, message, err := wss.ReadMessage()
-			if err != nil {
-				if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					plug.Log.Errorln("socket read error:", err)
-				}
-				return
-			}
-
-			// ignore messages
-			if (len(message) > 0) && (message[0] != 'h') {
-				plug.Log.Printf("recv: %s", message)
-			}
-		}
-	}()
+	ack := make(chan error)
+	go plug.listen(ack)
 
 	// Now we try to authenticate with our auth code...
 	plug.Log.Debugln("Authenticating with our websocket...")
@@ -249,7 +232,18 @@ func (plug *PlugDJ) connectSocket() error {
 		return err
 	}
 
-	return nil
+	select {
+	// wait until we have successfully authenticated
+	case err, failed := <-ack:
+		if failed {
+			return err
+		} else {
+			return nil
+		}
+	// or five seconds have passed
+	case <-time.After(time.Second * 5):
+		return errors.New("could not authenticate with WS server")
+	}
 }
 
 func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
@@ -261,6 +255,60 @@ func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
 
 	plug.Log.WithField("body", body).Debugln("Sending WS data")
 	return plug.wss.WriteJSON(body)
+}
+
+func (plug *PlugDJ) listen(ack chan error) {
+	wss := plug.wss
+	defer wss.Close()
+	defer close(plug.closer)
+	for {
+		_, data, err := wss.ReadMessage()
+		if err != nil {
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				plug.Log.Errorln("socket read error:", err)
+			}
+			return
+		}
+
+		// ignore messages with just "h"
+		if (len(data) == 1) && (data[0] == 'h') {
+			continue
+		}
+
+		var messages []Message
+		err = json.Unmarshal(data, &messages)
+
+		if err != nil {
+			plug.Log.WithField("data", string(data)).Warnf("ws: could not unmarshal>> %s\n", err)
+			continue
+		}
+
+		if len(messages) != 1 {
+			plug.Log.WithField("messages", messages).Fatalln("multiple messages received")
+			panic("Fatalln above")
+		}
+
+		message := messages[0]
+		plug.Log.WithFields(log.Fields{"message": message, "data": string(data)}).Println("ws: recv")
+
+		if message.Action == "ack" {
+			param, ok := message.Parameter.(string)
+			if !ok {
+				ack <- errors.New("ws: 'ack' > p is not a string")
+				continue
+			}
+
+			if param, err := strconv.Atoi(string(param)); err != nil {
+				plug.Log.WithField("error", err).Warnln("could not read 'ack' param value")
+				ack <- errors.New("ws: 'ack' > Parameter not integer")
+			} else if param == 1 {
+				close(ack)
+			} else {
+				plug.Log.WithField("Param", param).Warnln("Parameter is not equal 1")
+				ack <- errors.New("ws: ack > Parameter not 1")
+			}
+		}
+	}
 }
 
 // Get information about ourselves
@@ -320,14 +368,6 @@ func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Respons
 	}
 
 	return resp, nil
-}
-
-// Responses by plugtrack are like:
-// {"code":200,"message":"OK","data":{...}}
-// So we need to parse the responses and pick out the data
-type apiData struct {
-	Data interface{} `json:"data"`
-	Code int         `json:"code"`
 }
 
 // GetData allows you to receive info as a struct
