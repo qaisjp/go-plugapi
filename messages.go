@@ -25,8 +25,13 @@ var actions map[string]actionHandler
 func init() {
 	actions = make(map[string]actionHandler)
 
-	// add all your new actions here
+	// add all your new actions here make
+	// sure your function is with the form:
+	// 		handleAction_ACTIONNAME
+	// where ACTIONNAME is the exact
+	// string found in Message.Action
 	actions["ack"] = handleAction_ack
+	actions["chat"] = handleAction_chat
 }
 
 // Base action that executes the correct handler
@@ -61,4 +66,8 @@ func handleAction_ack(plug *PlugDJ, msg *Message) {
 		plug.Log.WithField("Param", param).Warnln("Parameter is not equal 1")
 		ack <- errors.New("ws: ack > Parameter not 1")
 	}
+}
+
+func handleAction_chat(plug *PlugDJ, msg *Message) {
+	plug.Log.WithField("data", msg.Parameter).Infoln("Chat message...")
 }
