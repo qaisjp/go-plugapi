@@ -166,12 +166,13 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	}
 
 	// Now we need to load ALL information about our current room state
-	room := &Room{}
-	err = plug.GetData(RoomStateEndpoint, room)
+	data := []*Room{}
+	err = plug.GetData(RoomStateEndpoint, data)
 	if err != nil {
 		return err
 	}
-	// plug.Log.WithField("room", room).Debugln("got room state")
+	plug.Log.WithField("data", data).Debugln("got room state")
+	plug.Room = data[0]
 
 	// See initRoom(data, callback)
 
@@ -179,7 +180,11 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	// ..
 
 	// Retrieve our history
-	// ..
+	// resp, err = plug.Get(HistoryEndpoint)
+	// if err != nil {
+	// 	return err
+	// }
+	// quickread(resp.Body)
 
 	// Emit something else...
 

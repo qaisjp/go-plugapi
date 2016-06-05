@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	// log "github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
 	"strings"
@@ -178,11 +178,24 @@ func (plug *PlugDJ) GetData(endpoint string, v interface{}) error {
 	// IN THE ARRAY....
 	// Perhaps you could do something like the socket action handlers
 	// determining an output you receive based on the endpoint...
+	objects := make([]interface{}, 0)
 
-	err = json.Unmarshal([]byte(wrapper.Data[0]), v)
-	if err != nil {
-		return err
+	for _, obj := range wrapper.Data {
+		var data interface{}
+		switch v.(type) {
+		case []*Room:
+			data = &Room{}
+			data = data.(*Room)
+		}
+		err := json.Unmarshal([]byte(obj), data)
+		if err != nil {
+			return err
+		}
+		objects = append(objects, data)
+		plug.Log.WithFields(log.Fields{"data": data, "objects": objects, "obj": string(obj)}).Debugln("added obj")
 	}
+
+	v = objects
 
 	return nil
 }
