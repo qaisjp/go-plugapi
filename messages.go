@@ -11,6 +11,7 @@ type actionHandler func(plug *PlugDJ, msg *Message)
 
 // All messages received by the
 // WS server have this structure
+// TODO: Should this be exported?
 type Message struct {
 	Action    string      `json:"a"`
 	Parameter interface{} `json:"p"`

@@ -1,28 +1,62 @@
 package plugapi
 
+import (
+	"fmt"
+	"io"
+	"io/ioutil"
+)
+
 type User struct{}
 
 // Booth is the data about the current queue
 type Booth struct {
-	CurrentDJ   int
-	IsLocked    bool // Can users join?
-	ShouldCycle bool // Will the queue progress automatically?
-	WaitingDJs  []User
+	CurrentDJ   int   `json:"currentDJ"`
+	IsLocked    bool  `json:"isLocked"`    // Can users join?
+	ShouldCycle bool  `json:"shouldCycle"` // Will the queue progress automatically?
+	WaitingDJs  []int `json:"waitingDJs"`
+}
+
+type Media struct {
+	Author   string `json:"author"`
+	CID      string `json:"cid"`
+	Duration int    `json:"duration"` // default: -1
+	Format   int    `json:"format"`   // default: -1
+	ID       int    `json:"id"`       // default: -1
+	Image    string `json:"image"`
+	Title    string `json:"title"`
+}
+
+// Playback - metadata about an existing play (note, not the song)
+type Playback struct {
+	HistoryID  string `json:"historyID"`
+	Media      Media  `json:"media"`
+	PlaylistID int    `json:"playlistID"` // default: -1
+	StartTime  string `json:"startTime"`
 }
 
 // Room contains metadata about the room
 type Room struct {
-	Description      string
-	Favourite        bool   // Does the logged in user love this room?
-	Guests           int    // ?? the below comment is correct
-	Population       int    // ?? the above comment is incorrect
-	HostID           int    // User ID of the room owner. default: -1
-	HostName         string // Username of the room owner
-	ID               int    // unique room identifier. default: -1
-	MinimumChatLevel int    // power required to speak. default: 1 (POSITIVE 1)
-	Name             string // name of the room
-	Slug             string // string shortname
-	WelcomeMessage   string // the welcome message on entering
+	Booth Booth `json:"booth"`
+	// FX interface{} `json:"fx"`
+	// Grabs interface{} `json:"grabs"`
+	Meta struct {
+		Description      string `json:"description"`
+		Favorite         bool   `json:"favorite"`       // Does the logged in user love this room?
+		Guests           int    `json:"guests"`         // Number of guests connected
+		HostID           int    `json:"hostID"`         // User ID of the room owner. default: -1
+		HostName         string `json:"hostName"`       // Username of the room owner
+		ID               int    `json:"id"`             // unique room identifier. default: -1
+		MinimumChatLevel int    `json:"minChatLevel"`   // power required to speak. default: 1 (POSITIVE 1)
+		Name             string `json:"name"`           // name of the room
+		Population       int    `json:"population"`     // Number of real users in the room (guests excluded)
+		Slug             string `json:"slug"`           // string shortname
+		WelcomeMessage   string `json:"welcomemessage"` // the welcome message on entering
+	} `json:"meta"`
+	// Mutes interface{} `json:"mutes"`
+	Playback Playback `json:"playback"`
+	Role     int      `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
+	// Users interface{} `json:"users"`
+	// Votes interface{} `json:"votes"`
 }
 
 // Event defines a Plug Event type
@@ -87,7 +121,6 @@ const (
 // List of individual REST endpoints
 const (
 	AuthLoginEndpoint string = "/auth/login"
-	RoomJoinEndpoint  string = "/rooms/join"
 
 	ChatDeleteEndpoint string = "/chat/"
 	HistoryEndpoint    string = "/rooms/history"
@@ -109,8 +142,19 @@ const (
 	RoomCycleBoothEndpoint string = "/booth/cycle"
 	RoomLockBoothEndpoint  string = "/booth/lock"
 	RoomInfoEndpoint       string = "/rooms/update"
+	RoomJoinEndpoint       string = "/rooms/join"
+	RoomStateEndpoint      string = "/rooms/state"
 
 	UserInfoEndpoint       string = "/users/me"
 	UserGetAvatarsEndpoint string = "/store/inventory/avatars"
 	UserSetAvatarEndpoint  string = "/users/avatar"
 )
+
+// TODO: quickread is a debug function
+// to print and return all of an
+// io.Reader's contents
+func quickread(reader io.Reader) []byte {
+	b, _ := ioutil.ReadAll(reader)
+	fmt.Printf("%s\n", b)
+	return b
+}

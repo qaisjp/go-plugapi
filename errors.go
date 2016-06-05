@@ -14,7 +14,7 @@ var (
 )
 
 type ErrDataRequestError struct {
-	Data     *Message
+	Data     interface{}
 	Endpoint string
 }
 

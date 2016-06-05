@@ -5,16 +5,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	// log "github.com/Sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	// "net/url"
 )
 
 func (plug *PlugDJ) authenticateUser() error {
+	// NOTE: We don't use plug.Get because we
+	// are not accessing plugdj.com/_/, we actually
+	// want plugdj.com/ (so we don't want to use the API)
 	resp, err := plug.web.Get(plug.config.BaseURL + "/")
 	if err != nil {
 		return err
@@ -126,12 +127,67 @@ FinishedSearching:
 	return nil, errors.New("plugapi: could not find all variables")
 }
 
-func quickread(reader io.ReadCloser) {
-	b, _ := ioutil.ReadAll(reader)
-	fmt.Printf("%s\n", b)
+// Get makes a get request to the plug API
+func (plug *PlugDJ) Get(endpoint string) (*http.Response, error) {
+	resp, err := plug.web.Get(plug.config.BaseURL + "/_" + endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// If the status code is not 200, error away
+	if resp.StatusCode != 200 {
+		resp.Body.Close()
+		return nil, ErrUnknownResponse{resp, endpoint}
+	}
+
+	return resp, nil
 }
 
-// Post makes a post request with the map provided as json
+// apiResponse is a struct for
+// data sent by the plug.dj API
+type apiResponse struct {
+	// Note: why can't data be a []interface{} ??
+	// Read https://github.com/golang/go/wiki/InterfaceSlice
+	Data   []json.RawMessage `json:"data"`
+	Meta   interface{}       `json:"meta"`
+	Status string            `json:"status"`
+	Time   float32           `json:"time"`
+}
+
+// GetData allows you to receive info as a struct
+func (plug *PlugDJ) GetData(endpoint string, v interface{}) error {
+	resp, err := plug.Get(endpoint)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	wrapper := &apiResponse{}
+
+	// err = json.Unmarshal(quickread(resp.Body), wrapper)
+	err = json.NewDecoder(resp.Body).Decode(wrapper)
+	if err != nil {
+		return err
+	}
+
+	if wrapper.Status != "ok" {
+		return &ErrDataRequestError{wrapper, endpoint}
+	}
+
+	// TODO: FIGURE OUT A WAY TO READ MULTIPLE DATA OBJECTS
+	// IN THE ARRAY....
+	// Perhaps you could do something like the socket action handlers
+	// determining an output you receive based on the endpoint...
+
+	err = json.Unmarshal([]byte(wrapper.Data[0]), v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Post makes a post request with the map provided as json to the plug API
 func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Response, error) {
 	body, err := json.Marshal(data)
 	if err != nil {
@@ -143,86 +199,11 @@ func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Respons
 		return nil, err
 	}
 
+	// If the status code is not 200, error away
+	if resp.StatusCode != 200 {
+		resp.Body.Close()
+		return nil, ErrUnknownResponse{resp, endpoint}
+	}
+
 	return resp, nil
 }
-
-// Get information about ourselves
-// func (c *apiClient) loadSession() error {
-// 	endpoint := ""
-
-// 	userdata := &User{}
-// 	err := c.GetData(endpoint, userdata)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	c.plug.User = userdata
-// 	return nil
-// }
-
-// Get makes a connection and returns the response,
-// handling any reauthentications required
-// func (c *apiClient) Get(endpoint string) (*http.Response, error) {
-// 	target := c.plug.config.BaseURL + endpoint
-
-// 	resp, err := c.client.Get(target)
-
-// 	// If we need authentication
-// 	if (err != nil) && (err.(*url.Error).Err == ErrAuthenticationRequired) {
-// 		// Try to authenticate
-// 		if err := c.authenticate(); err != nil {
-// 			return nil, err
-// 		}
-
-// 		// Resubmit the request
-// 		resp, err = c.client.Get(target)
-
-// 		// Do we still need authentication?
-// 		if (err != nil) && (err.(*url.Error).Err == ErrAuthenticationRequired) {
-// 			// Don't try again. Return "auth failed"
-// 			return nil, ErrAuthentication
-// 		}
-// 	}
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return resp, err
-// }
-
-// GetData allows you to receive info as a struct
-// func (c *http.Client) GetData(endpoint string, v interface{}) error {
-// 	resp, err := c.Get(endpoint)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer resp.Body.Close()
-
-// 	data := &apiData{}
-
-// 	switch v.(type) {
-// 	case *User:
-// 		data.Data = v.(*User)
-// 	case *Room:
-// 		data.Data = v.(*Room)
-// 	default:
-// 		return ErrUnknownData
-// 	}
-
-// 	// str, err := ioutil.ReadAll(resp.Body)
-// 	// fmt.Println(string(str))
-// 	// if true {
-// 	// 	return nil
-// 	// }
-
-// 	err = json.NewDecoder(resp.Body).Decode(data)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	if data.Code != 200 {
-// 		return &ErrDataRequestError{data, endpoint}
-// 	}
-
-// 	return nil
-// }

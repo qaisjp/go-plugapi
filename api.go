@@ -143,7 +143,6 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 		return errors.New("plugapi: not logged in")
 	}
 
-	plug.Room = &Room{Slug: slug}
 	plug.currentlyConnecting = true
 
 	// NOTE: Reference > queueConnectSocket(roomSlug) < is now called
@@ -166,19 +165,25 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 		return errors.New("plugapi: invalid room url")
 	}
 
-	quickread(resp.Body)
+	// Now we need to load ALL information about our current room state
+	room := &Room{}
+	err = plug.GetData(RoomStateEndpoint, room)
+	if err != nil {
+		return err
+	}
+	// plug.Log.WithField("room", room).Debugln("got room state")
+
+	// See initRoom(data, callback)
+
+	// Now we need to emit an AdvanceEvent
+	// ..
+
+	// Retrieve our history
+	// ..
+
+	// Emit something else...
+
+	plug.currentlyConnecting = false
 
 	return nil
-}
-
-func (plug *PlugDJ) GetRoomData(slug string) (*Room, error) {
-	room := &Room{}
-	// url := strings.Replace(roomEndpoint, "{room_slug}", slug, 1)
-	// err := plug.Client.GetData(url, room)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return room, nil
 }
