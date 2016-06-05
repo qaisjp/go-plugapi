@@ -5,7 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	log "github.com/Sirupsen/logrus"
+	// log "github.com/Sirupsen/logrus"
+	// "fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -155,10 +156,10 @@ type apiResponse struct {
 }
 
 // GetData allows you to receive info as a struct
-func (plug *PlugDJ) GetData(endpoint string, v interface{}) error {
+func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{}, error) {
 	resp, err := plug.Get(endpoint)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -167,37 +168,36 @@ func (plug *PlugDJ) GetData(endpoint string, v interface{}) error {
 	// err = json.Unmarshal(quickread(resp.Body), wrapper)
 	err = json.NewDecoder(resp.Body).Decode(wrapper)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if wrapper.Status != "ok" {
-		return &ErrDataRequestError{wrapper, endpoint}
+		return nil, &ErrDataRequestError{wrapper, endpoint}
 	}
 
-	// TODO: FIGURE OUT A WAY TO READ MULTIPLE DATA OBJECTS
-	// IN THE ARRAY....
-	// Perhaps you could do something like the socket action handlers
-	// determining an output you receive based on the endpoint...
 	objects := make([]interface{}, 0)
-
 	for _, obj := range wrapper.Data {
+		// Unmarshal our individual objects (each obj is a json.Message)
 		var data interface{}
-		switch v.(type) {
-		case []*Room:
+
+		switch outputType.(type) {
+		case *[]*Room:
+			// init the object so that Unmarshal knows how to treat it
 			data = &Room{}
-			data = data.(*Room)
+		default:
+			panic("!!")
 		}
+
 		err := json.Unmarshal([]byte(obj), data)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		// add it to the array of interfaces
 		objects = append(objects, data)
-		plug.Log.WithFields(log.Fields{"data": data, "objects": objects, "obj": string(obj)}).Debugln("added obj")
+		// plug.Log.WithFields(log.Fields{"objects": nil}).Debugln("added obj")
 	}
-
-	v = objects
-
-	return nil
+	return objects, nil
 }
 
 // Post makes a post request with the map provided as json to the plug API
