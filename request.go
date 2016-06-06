@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	// log "github.com/Sirupsen/logrus"
-	// "fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	// "net/url"
 )
@@ -156,7 +156,7 @@ type apiEnvelope struct {
 }
 
 // GetData allows you to receive info as a struct
-func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{}, error) {
+func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{}, error) {
 	resp, err := plug.Get(endpoint)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{
 		// Unmarshal our individual objects (each obj is a json.Message)
 		var data interface{}
 
-		switch outputType.(type) {
+		switch expected.(type) {
 		case []*Room:
 			// init the object so that Unmarshal knows how to treat it
 			data = &Room{}
@@ -198,7 +198,14 @@ func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{
 		// plug.Log.WithFields(log.Fields{"objects": nil}).Debugln("added obj")
 	}
 
-	return objects, nil
+	outType := reflect.TypeOf(expected)      // a "[]Room", for instance
+	data := reflect.MakeSlice(outType, 0, 0) // make a real []Room now
+	for _, d := range objects {              // go over our []interface{} (contains interface{} objects)
+		newObj := reflect.ValueOf(d).Convert(outType.Elem())
+		data = reflect.Append(data, newObj)
+	}
+
+	return data.Interface(), nil
 }
 
 // Post makes a post request with the map provided as json to the plug API
