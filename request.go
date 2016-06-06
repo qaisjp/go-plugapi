@@ -9,7 +9,6 @@ import (
 	// "fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	// "net/url"
 )
@@ -150,10 +149,10 @@ func (plug *PlugDJ) Get(endpoint string) (*http.Response, error) {
 type apiEnvelope struct {
 	// Note: why can't data be a []interface{} ??
 	// Read https://github.com/golang/go/wiki/InterfaceSlice
-	Data   []json.RawMessage `json:"data"`
-	Meta   interface{}       `json:"meta"`
-	Status string            `json:"status"`
-	Time   float32           `json:"time"`
+	Data   json.RawMessage `json:"data"`
+	Meta   interface{}     `json:"meta"`
+	Status string          `json:"status"`
+	Time   float32         `json:"time"`
 }
 
 // GetData allows you to receive info as a struct
@@ -176,26 +175,12 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{},
 		return nil, &ErrDataRequestError{envelope, endpoint}
 	}
 
-	outType := reflect.TypeOf(expected).Elem()  // *[]*Room -> []*Room
-	objects := reflect.MakeSlice(outType, 0, 0) // make the []*Room slice
-	objType := outType.Elem().Elem()            // []*Room -> *Room -> Room
-
-	for _, obj := range envelope.Data {
-		// reflect.New() creates a pointer to objType,
-		// which is why we need objType to be "Room" (becomes *Room),
-		// otherwise `data` would become "**Room" (bad)
-		data := reflect.New(objType).Interface()
-
-		// we need to Unmarshal our individual objects (each obj is a json.Message)
-		err := json.Unmarshal([]byte(obj), data)
-		if err != nil {
-			return nil, err
-		}
-
-		objects = reflect.Append(objects, reflect.ValueOf(data))
+	err = json.Unmarshal([]byte(envelope.Data), expected)
+	if err != nil {
+		return nil, err
 	}
 
-	return objects.Interface(), nil
+	return nil, nil
 }
 
 // Post makes a post request with the map provided as json to the plug API
