@@ -181,7 +181,7 @@ func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{
 		var data interface{}
 
 		switch outputType.(type) {
-		case *[]*Room:
+		case []*Room:
 			// init the object so that Unmarshal knows how to treat it
 			data = &Room{}
 		default:
@@ -197,6 +197,7 @@ func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{
 		objects = append(objects, data)
 		// plug.Log.WithFields(log.Fields{"objects": nil}).Debugln("added obj")
 	}
+
 	return objects, nil
 }
 
