@@ -146,7 +146,7 @@ func (plug *PlugDJ) Get(endpoint string) (*http.Response, error) {
 
 // apiResponse is a struct for
 // data sent by the plug.dj API
-type apiResponse struct {
+type apiEnvelope struct {
 	// Note: why can't data be a []interface{} ??
 	// Read https://github.com/golang/go/wiki/InterfaceSlice
 	Data   []json.RawMessage `json:"data"`
@@ -163,20 +163,20 @@ func (plug *PlugDJ) GetData(endpoint string, outputType interface{}) (interface{
 	}
 	defer resp.Body.Close()
 
-	wrapper := &apiResponse{}
+	envelope := &apiEnvelope{}
 
-	// err = json.Unmarshal(quickread(resp.Body), wrapper)
-	err = json.NewDecoder(resp.Body).Decode(wrapper)
+	// err = json.Unmarshal(quickread(resp.Body), envelope)
+	err = json.NewDecoder(resp.Body).Decode(envelope)
 	if err != nil {
 		return nil, err
 	}
 
-	if wrapper.Status != "ok" {
-		return nil, &ErrDataRequestError{wrapper, endpoint}
+	if envelope.Status != "ok" {
+		return nil, &ErrDataRequestError{envelope, endpoint}
 	}
 
 	objects := make([]interface{}, 0)
-	for _, obj := range wrapper.Data {
+	for _, obj := range envelope.Data {
 		// Unmarshal our individual objects (each obj is a json.Message)
 		var data interface{}
 
