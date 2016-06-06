@@ -175,17 +175,18 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{},
 		return nil, &ErrDataRequestError{envelope, endpoint}
 	}
 
-	objects := make([]interface{}, 0)
+	outType := reflect.TypeOf(expected)         // a "[]Room", for instance
+	objects := reflect.MakeSlice(outType, 0, 0) // make the actual slice
 	for _, obj := range envelope.Data {
-		// Unmarshal our individual objects (each obj is a json.Message)
+		// we need to Unmarshal our individual objects (each obj is a json.Message)
 		var data interface{}
 
+		// init the object so that Unmarshal knows how to treat it
 		switch expected.(type) {
 		case []*Room:
-			// init the object so that Unmarshal knows how to treat it
 			data = &Room{}
 		default:
-			panic("!!")
+			panic("plugapi: don't know how to handle interface provided")
 		}
 
 		err := json.Unmarshal([]byte(obj), data)
@@ -193,19 +194,12 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{},
 			return nil, err
 		}
 
-		// add it to the array of interfaces
-		objects = append(objects, data)
-		// plug.Log.WithFields(log.Fields{"objects": nil}).Debugln("added obj")
+		// interface{} -> reflect.Value --converted_to-> Room
+		newObj := reflect.ValueOf(data).Convert(outType.Elem())
+		objects = reflect.Append(objects, newObj)
 	}
 
-	outType := reflect.TypeOf(expected)      // a "[]Room", for instance
-	data := reflect.MakeSlice(outType, 0, 0) // make a real []Room now
-	for _, d := range objects {              // go over our []interface{} (contains interface{} objects)
-		newObj := reflect.ValueOf(d).Convert(outType.Elem())
-		data = reflect.Append(data, newObj)
-	}
-
-	return data.Interface(), nil
+	return objects.Interface(), nil
 }
 
 // Post makes a post request with the map provided as json to the plug API
