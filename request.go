@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	// log "github.com/Sirupsen/logrus"
+	// "fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -175,28 +176,21 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{},
 		return nil, &ErrDataRequestError{envelope, endpoint}
 	}
 
-	outType := reflect.TypeOf(expected)         // a "[]Room", for instance
+	outType := reflect.TypeOf(expected)         // a "[]*Room", for instance
 	objects := reflect.MakeSlice(outType, 0, 0) // make the actual slice
+	objType := outType.Elem().Elem()            // *Room -> Room
+
 	for _, obj := range envelope.Data {
+		// reflect.New() creates a point to objType, which is why we need objType to be "Room"
+		data := reflect.New(objType).Interface()
+
 		// we need to Unmarshal our individual objects (each obj is a json.Message)
-		var data interface{}
-
-		// init the object so that Unmarshal knows how to treat it
-		switch expected.(type) {
-		case []*Room:
-			data = &Room{}
-		default:
-			panic("plugapi: don't know how to handle interface provided")
-		}
-
 		err := json.Unmarshal([]byte(obj), data)
 		if err != nil {
 			return nil, err
 		}
 
-		// interface{} -> reflect.Value --converted_to-> Room
-		newObj := reflect.ValueOf(data).Convert(outType.Elem())
-		objects = reflect.Append(objects, newObj)
+		objects = reflect.Append(objects, reflect.ValueOf(data))
 	}
 
 	return objects.Interface(), nil
