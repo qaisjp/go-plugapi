@@ -156,10 +156,10 @@ type apiEnvelope struct {
 }
 
 // GetData allows you to receive info as a struct
-func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{}, error) {
+func (plug *PlugDJ) GetData(endpoint string, expected interface{}) error {
 	resp, err := plug.Get(endpoint)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -168,19 +168,19 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{},
 	// err = json.Unmarshal(quickread(resp.Body), envelope)
 	err = json.NewDecoder(resp.Body).Decode(envelope)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if envelope.Status != "ok" {
-		return nil, &ErrDataRequestError{envelope, endpoint}
+		return &ErrDataRequestError{envelope, endpoint}
 	}
 
 	err = json.Unmarshal([]byte(envelope.Data), expected)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	return nil
 }
 
 // Post makes a post request with the map provided as json to the plug API
