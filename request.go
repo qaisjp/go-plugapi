@@ -176,12 +176,14 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) (interface{},
 		return nil, &ErrDataRequestError{envelope, endpoint}
 	}
 
-	outType := reflect.TypeOf(expected)         // a "[]*Room", for instance
-	objects := reflect.MakeSlice(outType, 0, 0) // make the actual slice
-	objType := outType.Elem().Elem()            // *Room -> Room
+	outType := reflect.TypeOf(expected).Elem()  // *[]*Room -> []*Room
+	objects := reflect.MakeSlice(outType, 0, 0) // make the []*Room slice
+	objType := outType.Elem().Elem()            // []*Room -> *Room -> Room
 
 	for _, obj := range envelope.Data {
-		// reflect.New() creates a point to objType, which is why we need objType to be "Room"
+		// reflect.New() creates a pointer to objType,
+		// which is why we need objType to be "Room" (becomes *Room),
+		// otherwise `data` would become "**Room" (bad)
 		data := reflect.New(objType).Interface()
 
 		// we need to Unmarshal our individual objects (each obj is a json.Message)

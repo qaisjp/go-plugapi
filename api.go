@@ -167,7 +167,7 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Now we need to load ALL information about our current room state
 	var data []*Room
-	results, err := plug.GetData(RoomStateEndpoint, data)
+	results, err := plug.GetData(RoomStateEndpoint, &data)
 	if err != nil {
 		return err
 	}
