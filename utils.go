@@ -26,12 +26,34 @@ type Media struct {
 	Title    string `json:"title"`
 }
 
-// Playback - metadata about an existing play (note, not the song)
+// Playback metadata about an existing play (note, not the song)
 type Playback struct {
 	HistoryID  string `json:"historyID"`
 	Media      Media  `json:"media"`
 	PlaylistID int    `json:"playlistID"` // default: -1
 	StartTime  string `json:"startTime"`
+}
+
+// HistoryItem is an individual item in the room history
+type HistoryItem struct {
+	ID    string `json:"id"`
+	Media Media  `json:"media"`
+	Room  struct {
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+	} `json:"room"`
+	Score struct {
+		Grabs     int `json:"grabs"`
+		Listeners int `json:"listeners"`
+		Negative  int `json:"negative"`
+		Positive  int `json:"positive"`
+		Skipped   int `json:"skipped"`
+	} `json:"score"`
+	Timestamp string `json:"timestamp"` // Format: xx-xx-xx
+	User      struct {
+		ID       int    `json:"id"`
+		Username string `json:"username"`
+	}
 }
 
 // Room contains metadata about the room

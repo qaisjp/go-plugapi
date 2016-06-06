@@ -47,7 +47,7 @@ func handleAction(plug *PlugDJ, msg *Message) {
 	}
 
 	// Default action behaviour
-	plug.Log.WithFields(log.Fields{"message": msg}).Infoln("Could not handle socket message")
+	plug.Log.WithFields(log.Fields{"message": msg}).Debugln("Could not handle socket message")
 }
 
 func handleAction_ack(plug *PlugDJ, msg *Message) {

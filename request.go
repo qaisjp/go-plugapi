@@ -59,9 +59,7 @@ func (plug *PlugDJ) authenticateUser() error {
 		return err
 	}
 
-	quickread(resp.Body)
 	resp.Body.Close()
-
 	if resp.StatusCode == 401 {
 		return ErrAuthentication
 	} else if resp.StatusCode != 200 {
@@ -150,13 +148,13 @@ type apiEnvelope struct {
 	// Note: why can't data be a []interface{} ??
 	// Read https://github.com/golang/go/wiki/InterfaceSlice
 	Data   json.RawMessage `json:"data"`
-	Meta   interface{}     `json:"meta"`
+	Meta   json.RawMessage `json:"meta"`
 	Status string          `json:"status"`
 	Time   float32         `json:"time"`
 }
 
 // GetData allows you to receive info as a struct
-func (plug *PlugDJ) GetData(endpoint string, expected interface{}) error {
+func (plug *PlugDJ) GetData(endpoint string, data interface{}, meta interface{}) error {
 	resp, err := plug.Get(endpoint)
 	if err != nil {
 		return err
@@ -175,9 +173,16 @@ func (plug *PlugDJ) GetData(endpoint string, expected interface{}) error {
 		return &ErrDataRequestError{envelope, endpoint}
 	}
 
-	err = json.Unmarshal([]byte(envelope.Data), expected)
+	err = json.Unmarshal([]byte(envelope.Data), data)
 	if err != nil {
 		return err
+	}
+
+	if meta != nil {
+		err = json.Unmarshal([]byte(envelope.Meta), meta)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

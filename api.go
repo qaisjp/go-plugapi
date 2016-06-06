@@ -12,15 +12,15 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"time"
-	// "strings"
 )
 
 // PlugDJ is the individual user connected to plug
 type PlugDJ struct {
-	config *Config
-	Room   *Room
-	User   *User
-	Log    *log.Logger
+	config  *Config
+	Room    *Room
+	History []HistoryItem
+	User    *User
+	Log     *log.Logger
 
 	web                 *http.Client
 	wss                 *websocket.Conn
@@ -167,26 +167,27 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Now we need to load ALL information about our current room state
 	var data []*Room
-	err = plug.GetData(RoomStateEndpoint, &data)
+	err = plug.GetData(RoomStateEndpoint, &data, nil)
 	if err != nil {
 		return err
 	}
 
-	plug.Room = data[0]
+	if len(data) != 1 {
+		plug.Log.Fatalln("plugapi: could not join room as the room state was malformed", data, len(data))
+		panic("should terminate above")
+	}
 
-	// See initRoom(data, callback)
+	// Now we're sure the room exists
+	plug.Room = data[0]
 
 	// Now we need to emit an AdvanceEvent
 	// ..
 
 	// Retrieve our history
-	// resp, err = plug.Get(HistoryEndpoint)
-	// if err != nil {
-	// 	return err
-	// }
-	// quickread(resp.Body)
+	err = plug.GetData(HistoryEndpoint, &plug.History, nil)
 
-	// Emit something else...
+	// Now we need to emit a RoomJoinEvent
+	// ..
 
 	plug.currentlyConnecting = false
 
