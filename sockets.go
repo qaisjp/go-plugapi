@@ -117,13 +117,13 @@ func (plug *PlugDJ) connectSocket() error {
 }
 
 func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
-	body := messageOut{
+	body := socketMessage{
 		Action:    action,
 		Parameter: data,
 		Time:      time.Now().In(plug.location).Unix(), // NOTE: NEEDS TO BE NUMBER NOT STRING
 	}
 
-	plug.Log.WithField("body", body).Debugln("Sending WS data")
+	// plug.Log.WithField("body", body).Debugln("Sending WS data")
 	return plug.wss.WriteJSON(body)
 }
 
@@ -148,21 +148,30 @@ func (plug *PlugDJ) listen() {
 
 		// for some reason the server may send multiple messages
 		var messages []json.RawMessage
+		if err := json.Unmarshal([]byte(data), &messages); err != nil {
+			plug.Log.WithField("data", string(data)).Warnf("ws: could not unmarshal socket array>> %s\n", err)
+			return
+		}
 
 		for _, buf := range messages {
+			// plug.Log.Debugln(string(buf))
 			go func(buf json.RawMessage) {
 
 				// init a message with our json.RawMessage
 				// Param so that we can read it later
-				msg := &messageOut{
+				msg := socketMessage{
 					Parameter: new(json.RawMessage),
 				}
 
 				// unmarshal it
-				if err := json.Unmarshal(buf, msg); err != nil {
+				if err := json.Unmarshal(buf, &msg); err != nil {
 					plug.Log.WithField("data", string(data)).Warnf("ws: could not unmarshal>> %s\n", err)
 					return
 				}
+
+				// do some "depointering" so that we
+				// don't have to do it when handling it
+				msg.Parameter = *msg.Parameter.(*json.RawMessage)
 
 				// send it off to our socket message handler
 				handleAction(plug, msg)

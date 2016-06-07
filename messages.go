@@ -8,20 +8,14 @@ import (
 )
 
 // Signature of all action handlers
-type actionHandler func(plug *PlugDJ, msg *messageOut)
+type actionHandler func(plug *PlugDJ, msg json.RawMessage)
 
 // All messages received by the
 // WS server have this structure
-type messageOut struct {
+type socketMessage struct {
 	Action    string      `json:"a"`
 	Parameter interface{} `json:"p"`
 	Time      int64       `json:"t"`
-}
-
-type MessageIn struct {
-	Action    string          `json:"a"`
-	Parameter json.RawMessage `json:"p"`
-	Time      int64           `json:"t"`
 }
 
 // Map of all actions we can handle
@@ -36,7 +30,7 @@ func init() {
 	// sure your function is with the form:
 	// 		handleAction_ACTIONNAME
 	// where ACTIONNAME is the exact
-	// string found in messageOut.Action
+	// string found in socketMessage.Action
 	actions["ack"] = handleAction_ack
 	actions["chat"] = handleAction_chat
 }
@@ -44,23 +38,25 @@ func init() {
 // Base action that executes the correct handler
 // or do some debug outputs if the handler
 // does not exist for the given message.
-func handleAction(plug *PlugDJ, msg *messageOut) {
+func handleAction(plug *PlugDJ, msg socketMessage) {
 	handler, ok := actions[msg.Action]
 	if ok {
-		// a handler exists, lets call it
-		handler(plug, msg)
+		// a handler exists, lets call it,
+		// but give it the param directly
+		handler(plug, msg.Parameter.(json.RawMessage))
 		return
 	}
 
 	// Default action behaviour
-	plug.Log.WithFields(log.Fields{"message": msg}).Debugln("Could not handle socket message")
+	msg.Parameter = string(msg.Parameter.(json.RawMessage))
+	plug.Log.WithFields(log.Fields{"message": msg}).Debugln("WS: ??:")
 }
 
-func handleAction_ack(plug *PlugDJ, msg *messageOut) {
+func handleAction_ack(plug *PlugDJ, msg json.RawMessage) {
 	ack := plug.ack
 
 	var param string
-	err := json.Unmarshal(msg.Parameter.([]byte), &param)
+	err := json.Unmarshal(msg, &param)
 	if err != nil {
 		ack <- err
 		return
@@ -77,8 +73,8 @@ func handleAction_ack(plug *PlugDJ, msg *messageOut) {
 	}
 }
 
-func handleAction_chat(plug *PlugDJ, msg *messageOut) {
+func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
 	var payload ChatPayload
-	json.Unmarshal(msg.Parameter.([]byte), &payload)
+	json.Unmarshal(msg, &payload)
 	plug.emitEvent(ChatEvent, payload)
 }

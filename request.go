@@ -43,7 +43,6 @@ func (plug *PlugDJ) authenticateUser() error {
 		plug.Log.WithField("_csrf", csrf).Error("csrf token malformed")
 		return errors.New("dubapi: csrf token is malformed")
 	}
-	plug.Log.WithField("_csrf", csrf).Debugln("found csrf token")
 
 	plug.Log.Info("Attempting to log in...")
 
