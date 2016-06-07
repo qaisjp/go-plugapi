@@ -1,21 +1,27 @@
 package plugapi
 
 import (
+	"encoding/json"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"strconv"
 )
 
 // Signature of all action handlers
-type actionHandler func(plug *PlugDJ, msg *Message)
+type actionHandler func(plug *PlugDJ, msg *MessageIn)
 
 // All messages received by the
 // WS server have this structure
-// TODO: Should this be exported?
-type Message struct {
+type messageOut struct {
 	Action    string      `json:"a"`
 	Parameter interface{} `json:"p"`
 	Time      int64       `json:"t"`
+}
+
+type MessageIn struct {
+	Action    string          `json:"a"`
+	Parameter json.RawMessage `json:"p"`
+	Time      int64           `json:"t"`
 }
 
 // Map of all actions we can handle
@@ -30,7 +36,7 @@ func init() {
 	// sure your function is with the form:
 	// 		handleAction_ACTIONNAME
 	// where ACTIONNAME is the exact
-	// string found in Message.Action
+	// string found in MessageIn.Action
 	actions["ack"] = handleAction_ack
 	actions["chat"] = handleAction_chat
 }
@@ -38,7 +44,7 @@ func init() {
 // Base action that executes the correct handler
 // or do some debug outputs if the handler
 // does not exist for the given message.
-func handleAction(plug *PlugDJ, msg *Message) {
+func handleAction(plug *PlugDJ, msg *MessageIn) {
 	handler, ok := actions[msg.Action]
 	if ok {
 		// a handler exists, lets call it
@@ -47,14 +53,16 @@ func handleAction(plug *PlugDJ, msg *Message) {
 	}
 
 	// Default action behaviour
-	plug.Log.WithFields(log.Fields{"message": msg}).Debugln("Could not handle socket message")
+	plug.Log.WithFields(log.Fields{"message": messageOut{msg.Action, string(msg.Parameter), msg.Time}}).Debugln("Could not handle socket message")
 }
 
-func handleAction_ack(plug *PlugDJ, msg *Message) {
+func handleAction_ack(plug *PlugDJ, msg *MessageIn) {
 	ack := plug.ack
-	param, ok := msg.Parameter.(string)
-	if !ok {
-		ack <- errors.New("ws: 'ack' > p is not a string")
+
+	var param string
+	err := json.Unmarshal(msg.Parameter, &param)
+	if err != nil {
+		ack <- err
 		return
 	}
 
@@ -69,6 +77,8 @@ func handleAction_ack(plug *PlugDJ, msg *Message) {
 	}
 }
 
-func handleAction_chat(plug *PlugDJ, msg *Message) {
-	plug.Log.WithField("data", msg.Parameter).Infoln("Chat message...")
+func handleAction_chat(plug *PlugDJ, msg *MessageIn) {
+	var payload ChatPayload
+	json.Unmarshal(msg.Parameter, &payload)
+	plug.emitEvent(ChatEvent, payload)
 }

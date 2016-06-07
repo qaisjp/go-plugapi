@@ -117,7 +117,7 @@ func (plug *PlugDJ) connectSocket() error {
 }
 
 func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
-	body := Message{
+	body := messageOut{
 		Action:    action,
 		Parameter: data,
 		Time:      time.Now().In(plug.location).Unix(), // NOTE: NEEDS TO BE NUMBER NOT STRING
@@ -147,7 +147,7 @@ func (plug *PlugDJ) listen() {
 		}
 
 		// for some reason the server may send multiple messages
-		var messages []*Message
+		var messages []*MessageIn
 
 		// read the array sent
 		err = json.Unmarshal(data, &messages)

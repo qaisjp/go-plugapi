@@ -81,65 +81,6 @@ type Room struct {
 	// Votes interface{} `json:"votes"`
 }
 
-// Event defines a Plug Event type
-// type Event string
-
-// List of Event types
-const (
-	AdvanceEvent                int = iota // = "advance"
-	BanEvent                               // = "ban"
-	BoothLockedEvent                       // = "boothLocked"
-	ChatEvent                              // = "chat"
-	ChatCommandEvent                       // = "command"
-	ChatDeleteEvent                        // = "chatDelete"
-	ChatLevelUpdateEvent                   // = "roomMinChatLevelUpdate"
-	CommandEvent                           // = "command"
-	DJListCycleEvent                       // = "djListCycle"
-	DJListUpdateEvent                      // = "djListUpdate"
-	DJListLockedEvent                      // = "djListLocked"
-	EarnEvent                              // = "earn"
-	FollowJoinEvent                        // = "followJoin"
-	FloodChatEvent                         // = "floodChat"
-	FriendRequestEvent                     // = "friendRequest"
-	GiftedEvent                            // = "gifted"
-	GrabEvent                              // = "grab"
-	KillSessionEvent                       // = "killSession"
-	MaintModeEvent                         // = "plugMaintenance"
-	MaintModeAlertEvent                    // = "plugMaintenanceAlert"
-	ModerateAddDjEvent                     // = "modAddDJ"
-	ModerateAddWaitlistEvent               // = "modAddWaitList"
-	ModerateAmbassadorEvent                // = "modAmbassador"
-	ModerateBanEvent                       // = "modBan"
-	ModerateMoveDjEvent                    // = "modMoveDJ"
-	ModerateMuteEvent                      // = "modMute"
-	ModerateRemoveDjEvent                  // = "modRemoveDJ"
-	ModerateRemoveWaitlistEvent            // = "modRemoveWaitList"
-	ModerateSkipEvent                      // = "modSkip"
-	ModerateStaffEvent                     // = "modStaff"
-	NotifyEvent                            // = "notify"
-	PdjMessageEvent                        // = "pdjMessage"
-	PdjUpdateEvent                         // = "pdjUpdate"
-	PingEvent                              // = "ping"
-	PlaylistCycleEvent                     // = "playlistCycle"
-	RequestDurationEvent                   // = "requestDuration"
-	RequestDurationRetryEvent              // = "requestDurationRetry"
-	RoomChangeEvent                        // = "roomChanged"
-	RoomDescriptionUpdateEvent             // = "roomDescriptionUpdate"
-	RoomJoinEvent                          // = "roomJoin"
-	RoomNameUpdateEvent                    // = "roomNameUpdate"
-	RoomVoteSkipEvent                      // = "roomVoteSkip"
-	RoomWelcomeUpdateEvent                 // = "roomWelcomeUpdate"
-	SessionCloseEvent                      // = "sessionClose"
-	SkipEvent                              // = "skip"
-	StrobeToggleEvent                      // = "strobeToggle"
-	UserCounterUpdateEvent                 // = "userCounterUpdate"
-	UserFollowEvent                        // = "userFollow"
-	UserJoinEvent                          // = "userJoin"
-	UserLeaveEvent                         // = "userLeave"
-	UserUpdateEvent                        // = "userUpdate"
-	VoteEvent                              // = "vote"
-)
-
 // List of individual REST endpoints
 const (
 	AuthLoginEndpoint string = "/auth/login"

@@ -33,6 +33,9 @@ type PlugDJ struct {
 	// only used once in sockets.go to determine
 	// whether WS server authentication succeeded
 	ack chan error
+
+	// for events!
+	eventFuncs map[Event]ProcessPayloadFunc
 }
 
 // Config is the configuration for logging into plug
@@ -65,7 +68,11 @@ func New(config Config) (*PlugDJ, error) {
 		return nil, errors.New("plugapi: invalid url provided")
 	}
 
-	plug := &PlugDJ{config: &config, Log: config.Log}
+	plug := &PlugDJ{
+		config:     &config,
+		Log:        config.Log,
+		eventFuncs: make(map[Event]ProcessPayloadFunc),
+	}
 
 	// a closer so that we can close any goroutines we have created
 	plug.closer = make(chan struct{})
