@@ -7,3 +7,17 @@ type ChatPayload struct {
 	ChatID     int    `json:"cid"`
 	Subscriber int    `json:"sub"` // subscriber state. usually 0/1 for no/yes
 }
+
+type AdvancePayload struct {
+	CurrentDJ *User
+	DJs       []*User
+	LastPlay  struct {
+		DJ    *User
+		Media Media
+		Score PlayScore
+	}
+
+	HistoryID string
+	Media     Media
+	StartTime string
+}

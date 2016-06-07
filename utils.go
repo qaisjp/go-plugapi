@@ -6,7 +6,10 @@ import (
 	"io/ioutil"
 )
 
-type User struct{}
+type User struct {
+	ID   int
+	Role int `json:"role"`
+}
 
 // Booth is the data about the current queue
 type Booth struct {
@@ -34,6 +37,15 @@ type Playback struct {
 	StartTime  string `json:"startTime"`
 }
 
+// PlayScore is the score of an individual song
+type PlayScore struct {
+	Grabs     int `json:"grabs"`
+	Listeners int `json:"listeners"`
+	Negative  int `json:"negative"`
+	Positive  int `json:"positive"`
+	Skipped   int `json:"skipped"`
+}
+
 // HistoryItem is an individual item in the room history
 type HistoryItem struct {
 	ID    string `json:"id"`
@@ -42,43 +54,12 @@ type HistoryItem struct {
 		Name string `json:"name"`
 		Slug string `json:"slug"`
 	} `json:"room"`
-	Score struct {
-		Grabs     int `json:"grabs"`
-		Listeners int `json:"listeners"`
-		Negative  int `json:"negative"`
-		Positive  int `json:"positive"`
-		Skipped   int `json:"skipped"`
-	} `json:"score"`
-	Timestamp string `json:"timestamp"` // Format: xx-xx-xx
+	Score     PlayScore `json:"score"`
+	Timestamp string    `json:"timestamp"` // Format: xx-xx-xx
 	User      struct {
 		ID       int    `json:"id"`
 		Username string `json:"username"`
 	}
-}
-
-// Room contains metadata about the room
-type Room struct {
-	Booth Booth `json:"booth"`
-	// FX interface{} `json:"fx"`
-	// Grabs interface{} `json:"grabs"`
-	Meta struct {
-		Description      string `json:"description"`
-		Favorite         bool   `json:"favorite"`       // Does the logged in user love this room?
-		Guests           int    `json:"guests"`         // Number of guests connected
-		HostID           int    `json:"hostID"`         // User ID of the room owner. default: -1
-		HostName         string `json:"hostName"`       // Username of the room owner
-		ID               int    `json:"id"`             // unique room identifier. default: -1
-		MinimumChatLevel int    `json:"minChatLevel"`   // power required to speak. default: 1 (POSITIVE 1)
-		Name             string `json:"name"`           // name of the room
-		Population       int    `json:"population"`     // Number of real users in the room (guests excluded)
-		Slug             string `json:"slug"`           // string shortname
-		WelcomeMessage   string `json:"welcomemessage"` // the welcome message on entering
-	} `json:"meta"`
-	// Mutes interface{} `json:"mutes"`
-	Playback Playback `json:"playback"`
-	Role     int      `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
-	// Users interface{} `json:"users"`
-	// Votes interface{} `json:"votes"`
 }
 
 // List of individual REST endpoints

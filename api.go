@@ -184,17 +184,28 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 		panic("should terminate above")
 	}
 
-	// Now we're sure the room exists
-	plug.Room = data[0]
+	// Now we're sure the room exists, store it
+	// locally because we need it later on here
+	room := data[0]
+
+	// add the room to our obj
+	plug.Room = room
+
+	// and the new user..
+	plug.User = &User{Role: room.Role}
 
 	// Now we need to emit an AdvanceEvent
-	// ..
+	plug.emitEvent(AdvanceEvent, AdvancePayload{
+		CurrentDJ: plug.GetDJ(),
+		DJs:       plug.GetDJs(),
+		// ... more things are missing ...
+	})
 
 	// Retrieve our history
 	err = plug.GetData(HistoryEndpoint, &plug.History, nil)
 
 	// Now we need to emit a RoomJoinEvent
-	// ..
+	plug.emitEvent(RoomJoinEvent, room.Meta.Name)
 
 	plug.currentlyConnecting = false
 
