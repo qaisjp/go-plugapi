@@ -147,18 +147,26 @@ func (plug *PlugDJ) listen() {
 		}
 
 		// for some reason the server may send multiple messages
-		var messages []*MessageIn
+		var messages []json.RawMessage
 
-		// read the array sent
-		err = json.Unmarshal(data, &messages)
-		if err != nil {
-			plug.Log.WithField("data", string(data)).Warnf("ws: could not unmarshal>> %s\n", err)
-			continue
-		}
+		for _, buf := range messages {
+			go func(buf json.RawMessage) {
 
-		// parse each individual message sent by the server
-		for _, msg := range messages {
-			go handleAction(plug, msg)
+				// init a message with our json.RawMessage
+				// Param so that we can read it later
+				msg := &messageOut{
+					Parameter: new(json.RawMessage),
+				}
+
+				// unmarshal it
+				if err := json.Unmarshal(buf, msg); err != nil {
+					plug.Log.WithField("data", string(data)).Warnf("ws: could not unmarshal>> %s\n", err)
+					return
+				}
+
+				// send it off to our socket message handler
+				handleAction(plug, msg)
+			}(buf)
 		}
 	}
 }

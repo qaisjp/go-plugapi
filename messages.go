@@ -8,7 +8,7 @@ import (
 )
 
 // Signature of all action handlers
-type actionHandler func(plug *PlugDJ, msg *MessageIn)
+type actionHandler func(plug *PlugDJ, msg *messageOut)
 
 // All messages received by the
 // WS server have this structure
@@ -36,7 +36,7 @@ func init() {
 	// sure your function is with the form:
 	// 		handleAction_ACTIONNAME
 	// where ACTIONNAME is the exact
-	// string found in MessageIn.Action
+	// string found in messageOut.Action
 	actions["ack"] = handleAction_ack
 	actions["chat"] = handleAction_chat
 }
@@ -44,7 +44,7 @@ func init() {
 // Base action that executes the correct handler
 // or do some debug outputs if the handler
 // does not exist for the given message.
-func handleAction(plug *PlugDJ, msg *MessageIn) {
+func handleAction(plug *PlugDJ, msg *messageOut) {
 	handler, ok := actions[msg.Action]
 	if ok {
 		// a handler exists, lets call it
@@ -53,14 +53,14 @@ func handleAction(plug *PlugDJ, msg *MessageIn) {
 	}
 
 	// Default action behaviour
-	plug.Log.WithFields(log.Fields{"message": messageOut{msg.Action, string(msg.Parameter), msg.Time}}).Debugln("Could not handle socket message")
+	plug.Log.WithFields(log.Fields{"message": msg}).Debugln("Could not handle socket message")
 }
 
-func handleAction_ack(plug *PlugDJ, msg *MessageIn) {
+func handleAction_ack(plug *PlugDJ, msg *messageOut) {
 	ack := plug.ack
 
 	var param string
-	err := json.Unmarshal(msg.Parameter, &param)
+	err := json.Unmarshal(msg.Parameter.([]byte), &param)
 	if err != nil {
 		ack <- err
 		return
@@ -77,8 +77,8 @@ func handleAction_ack(plug *PlugDJ, msg *MessageIn) {
 	}
 }
 
-func handleAction_chat(plug *PlugDJ, msg *MessageIn) {
+func handleAction_chat(plug *PlugDJ, msg *messageOut) {
 	var payload ChatPayload
-	json.Unmarshal(msg.Parameter, &payload)
+	json.Unmarshal(msg.Parameter.([]byte), &payload)
 	plug.emitEvent(ChatEvent, payload)
 }
