@@ -1,15 +1,15 @@
 package plugapi
 
-// This file is dedicated towards payloads for use in events.
-// Intermediate structs should be used to handle incoming json
+// This file is dedicated towards structs that definitely need to be
+// accessed by other packages.
+
+// For pauloads, intermediate structs should be used to handle incoming json
 // unless it can be directly unmarshalled (with the exception of IntBool)
 
 type ChatPayload struct {
-	Message    string  `json:"message"`
-	UserID     int     `json:"uid"`
-	Username   string  `json:"un"`
-	ChatID     int     `json:"cid"`
-	Subscriber IntBool `json:"sub"` // subscriber state. usually 0/1 for no/yes
+	Message string // The chat message
+	User    *User  // Who it came from
+	Type    chatMessageType
 }
 
 type AdvancePayload struct {
@@ -21,4 +21,14 @@ type AdvancePayload struct {
 		Score PlayScore
 	}
 	Playback *Playback
+}
+
+// CommandHandler is the structure of a function that can handle a chat command
+type CommandHandler func(data CommandData, command string, args ...string)
+
+// CommandData is used when receiving individual command events
+type CommandData struct {
+	Plug      *PlugDJ
+	User      *User
+	MessageID string
 }

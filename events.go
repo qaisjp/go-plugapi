@@ -11,13 +11,6 @@ type Event int
 // ProcessPayloadFunc is a common function for payload return values
 type ProcessPayloadFunc func(plug *PlugDJ, payload interface{})
 
-// RegisterEvents registers the function to call when the specified event(s) are encountered
-func (plug *PlugDJ) RegisterEvents(fn ProcessPayloadFunc, events ...Event) {
-	for _, event := range events {
-		plug.eventFuncs[event] = fn
-	}
-}
-
 func (plug *PlugDJ) emitEvent(event Event, payload interface{}) {
 	fn := plug.eventFuncs[event]
 	if fn != nil {

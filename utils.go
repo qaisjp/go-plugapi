@@ -9,8 +9,9 @@ import (
 )
 
 type User struct {
-	ID   int
-	Role int `json:"role"`
+	ID       int
+	Role     int
+	Username string
 }
 
 // Booth is the data about the current queue
@@ -63,6 +64,13 @@ type HistoryItem struct {
 		Username string `json:"username"`
 	}
 }
+
+type chatMessageType int
+
+const (
+	EmoteChatMessage chatMessageType = iota
+	RegularChatMessage
+)
 
 // List of individual REST endpoints
 const (

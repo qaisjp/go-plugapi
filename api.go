@@ -34,8 +34,10 @@ type PlugDJ struct {
 	// whether WS server authentication succeeded
 	ack chan error
 
-	// for events registered by the package user
+	// for events registered
 	eventFuncs map[Event]ProcessPayloadFunc
+	// for commands registered
+	commandFuncs map[string]CommandHandler
 }
 
 // Config is the configuration for logging into plug
@@ -69,9 +71,10 @@ func New(config Config) (*PlugDJ, error) {
 	}
 
 	plug := &PlugDJ{
-		config:     &config,
-		Log:        config.Log,
-		eventFuncs: make(map[Event]ProcessPayloadFunc),
+		config:       &config,
+		Log:          config.Log,
+		eventFuncs:   make(map[Event]ProcessPayloadFunc),
+		commandFuncs: make(map[string]CommandHandler),
 	}
 
 	// a closer so that we can close any goroutines we have created
@@ -160,6 +163,20 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 		return err
 	}
 
+	selfInfo := []struct {
+		ID       int    `json:"id"`
+		Username string `json:"username"`
+	}{}
+
+	if err := plug.GetData(UserInfoEndpoint, &selfInfo, nil); err != nil {
+		return err
+	}
+
+	plug.User = &User{
+		ID:       selfInfo[0].ID,
+		Username: selfInfo[0].Username,
+	}
+
 	// TODO: Should this be queued?
 	plug.Log.Debugln("Joining room...")
 	resp, err := plug.Post(RoomJoinEndpoint, map[string]string{"slug": slug})
@@ -191,8 +208,8 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	// add the room to our obj
 	plug.Room = room
 
-	// and the new user..
-	plug.User = &User{Role: room.Role}
+	// and the now add the user's role
+	plug.User.Role = room.Role
 
 	// Now we need to emit an AdvanceEvent
 	plug.emitEvent(AdvanceEvent, AdvancePayload{
@@ -227,5 +244,37 @@ func (plug *PlugDJ) SendChat(msg string) error {
 	// to prevent too many messages from being sent
 	// (plug.dj may ban or disconnect you for spam)
 	plug.sendSocketJSON("chat", msg)
+	return nil
+}
+
+// RegisterEvents registers the function to call when the specified event(s) are encountered
+// Note: only one function can be registered to a single event - it will replace any existing handler.
+func (plug *PlugDJ) RegisterEvents(fn ProcessPayloadFunc, events ...Event) {
+	for _, event := range events {
+		plug.eventFuncs[event] = fn
+	}
+}
+
+// RegisterCommands registers a function to several commands
+// Note: only one function can be registered to a single command - it will replace any existing handler.
+func (plug *PlugDJ) RegisterCommands(fn CommandHandler, commands ...string) {
+	for _, cmd := range commands {
+		plug.commandFuncs[cmd] = fn
+	}
+}
+
+func (plug *PlugDJ) ModerateDeleteMessage(messageID string) error {
+	req, err := http.NewRequest("DELETE", plug.getAPIURL()+ChatDeleteEndpoint+messageID, nil)
+	if err != nil {
+		return nil
+	}
+
+	resp, err := plug.web.Do(req)
+	if err != nil {
+		return err
+	}
+
+	quickread(resp.Body)
+	resp.Body.Close()
 	return nil
 }

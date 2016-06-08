@@ -5,6 +5,7 @@ import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"strconv"
+	"strings"
 )
 
 // Signature of all action handlers
@@ -74,7 +75,51 @@ func handleAction_ack(plug *PlugDJ, msg json.RawMessage) {
 }
 
 func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
-	var payload ChatPayload
-	json.Unmarshal(msg, &payload)
+
+	raw := struct {
+		Message    string  `json:"message"`
+		Username   string  `json:"un"`
+		MessageID  string  `json:"cid"`
+		UserID     int     `json:"uid"`
+		Subscriber IntBool `json:"sub"`
+	}{}
+	json.Unmarshal(msg, &raw)
+
+	// Don't readvertise our own chat messages
+	if raw.UserID == plug.User.ID {
+		return
+	}
+
+	user := plug.getUser(raw.UserID)
+	if strings.Index(raw.Message, "!") == 0 && user != nil {
+		// split the message by spaces (includes command)
+		args := strings.Split(raw.Message, " ")
+		cmd := args[0][1:]
+
+		if handler := plug.commandFuncs[cmd]; handler != nil {
+			data := CommandData{
+				Plug:      plug,
+				User:      user,
+				MessageID: raw.MessageID,
+			}
+
+			handler(data, cmd, args[1:]...)
+		}
+		return
+	}
+
+	payload := ChatPayload{
+		Message: raw.Message,
+		User:    user,
+	}
+
+	// If contains "/me" or "/em" at the front, make the type an EmoteChatMessage. Make it Regular otherwise.
+	if strings.Index(raw.Message, "/me") == 0 || strings.Index(raw.Message, "/em") == 0 {
+		payload.Type = EmoteChatMessage
+		payload.Message = raw.Message[3:]
+	} else {
+		payload.Type = RegularChatMessage
+	}
+
 	plug.emitEvent(ChatEvent, payload)
 }

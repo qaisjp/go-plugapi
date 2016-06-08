@@ -127,7 +127,7 @@ FinishedSearching:
 
 // Get makes a get request to the plug API
 func (plug *PlugDJ) Get(endpoint string) (*http.Response, error) {
-	resp, err := plug.web.Get(plug.config.BaseURL + "/_" + endpoint)
+	resp, err := plug.web.Get(plug.getAPIURL() + endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Respons
 		return nil, err
 	}
 
-	resp, err := plug.web.Post(plug.config.BaseURL+"/_"+endpoint, "application/json", bytes.NewReader(body))
+	resp, err := plug.web.Post(plug.getAPIURL()+endpoint, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -206,4 +206,8 @@ func (plug *PlugDJ) Post(endpoint string, data map[string]string) (*http.Respons
 	}
 
 	return resp, nil
+}
+
+func (plug *PlugDJ) getAPIURL() string {
+	return plug.config.BaseURL + "/_"
 }
