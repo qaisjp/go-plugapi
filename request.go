@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	// log "github.com/Sirupsen/logrus"
-	// "fmt"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -152,24 +152,17 @@ type apiEnvelope struct {
 	Time   float32         `json:"time"`
 }
 
-// GetData allows you to receive info as a struct
-func (plug *PlugDJ) GetData(endpoint string, data interface{}, meta interface{}) error {
-	resp, err := plug.Get(endpoint)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
+func handleResponse(resp *http.Response, data interface{}, meta interface{}) error {
 	envelope := &apiEnvelope{}
 
-	// err = json.Unmarshal(quickread(resp.Body), envelope)
-	err = json.NewDecoder(resp.Body).Decode(envelope)
+	// err := json.Unmarshal(quickread(resp.Body), envelope)
+	err := json.NewDecoder(resp.Body).Decode(envelope)
 	if err != nil {
 		return err
 	}
 
 	if envelope.Status != "ok" {
-		return &ErrDataRequestError{envelope, endpoint}
+		return &ErrDataRequestError{envelope, fmt.Sprintf("%+v", resp.Request.Host)}
 	}
 
 	err = json.Unmarshal([]byte(envelope.Data), data)
@@ -182,6 +175,21 @@ func (plug *PlugDJ) GetData(endpoint string, data interface{}, meta interface{})
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// GetData allows you to receive info as a struct
+func (plug *PlugDJ) GetData(endpoint string, data interface{}, meta interface{}) error {
+	resp, err := plug.Get(endpoint)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if err := handleResponse(resp, &data, &meta); err != nil {
+		return err
 	}
 
 	return nil

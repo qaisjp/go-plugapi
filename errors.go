@@ -39,3 +39,12 @@ func ErrIsUnknownResponse(err error) bool {
 		return false
 	}
 }
+
+func ErrIsDataRequestError(err error) bool {
+	switch err.(type) {
+	case *ErrDataRequestError:
+		return true
+	default:
+		return false
+	}
+}

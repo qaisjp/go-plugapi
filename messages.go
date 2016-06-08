@@ -34,6 +34,9 @@ func init() {
 	// string found in socketMessage.Action
 	actions["ack"] = handleAction_ack
 	actions["chat"] = handleAction_chat
+
+	// Ignoring
+	actions["chatDelete"] = handleAction_IGNORER
 }
 
 // Base action that executes the correct handler
@@ -52,6 +55,9 @@ func handleAction(plug *PlugDJ, msg socketMessage) {
 	msg.Parameter = string(msg.Parameter.(json.RawMessage))
 	plug.Log.WithFields(log.Fields{"message": msg}).Debugln("WS: ??:")
 }
+
+// Doesn't do anything.
+func handleAction_IGNORER(_ *PlugDJ, _ json.RawMessage) {}
 
 func handleAction_ack(plug *PlugDJ, msg json.RawMessage) {
 	ack := plug.ack

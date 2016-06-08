@@ -274,6 +274,12 @@ func (plug *PlugDJ) ModerateDeleteMessage(messageID string) error {
 		return err
 	}
 
+	var errs []string
+	if err := handleResponse(resp, &errs, nil); err != nil {
+		plug.Log.WithFields(log.Fields{"data": errs, "error": err}).Warnln("plugapi: could not delete chat message")
+		return err
+	}
+
 	quickread(resp.Body)
 	resp.Body.Close()
 	return nil
