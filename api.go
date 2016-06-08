@@ -34,7 +34,7 @@ type PlugDJ struct {
 	// whether WS server authentication succeeded
 	ack chan error
 
-	// for events!
+	// for events registered by the package user
 	eventFuncs map[Event]ProcessPayloadFunc
 }
 
@@ -196,9 +196,10 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Now we need to emit an AdvanceEvent
 	plug.emitEvent(AdvanceEvent, AdvancePayload{
-		CurrentDJ: plug.GetDJ(),
-		DJs:       plug.GetDJs(),
-		// ... more things are missing ...
+		CurrentDJ: plug.getDJ(),
+		DJs:       plug.getDJs(),
+		LastPlay:  nil,
+		Playback:  plug.Room.Playback,
 	})
 
 	// Retrieve our history
@@ -209,5 +210,22 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	plug.currentlyConnecting = false
 
+	return nil
+}
+
+func (plug *PlugDJ) SendChat(msg string) error {
+	if msg == "" {
+		return errors.New("go-plugapi: message is empty")
+	}
+
+	if len(msg) > 250 {
+		return errors.New("go-plugapi: message is too long")
+	}
+
+	// TODO: offload this to a goroutine
+	// The goroutine will use a linear backoff
+	// to prevent too many messages from being sent
+	// (plug.dj may ban or disconnect you for spam)
+	plug.sendSocketJSON("chat", msg)
 	return nil
 }

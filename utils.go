@@ -1,9 +1,11 @@
 package plugapi
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 )
 
 type User struct {
@@ -101,4 +103,21 @@ func quickread(reader io.Reader) []byte {
 	b, _ := ioutil.ReadAll(reader)
 	fmt.Printf("%s\n", b)
 	return b
+}
+
+type IntBool bool
+
+func (b *IntBool) UnmarshalJSON(data []byte) error {
+	n, err := strconv.Atoi(string(data))
+
+	if err != nil {
+		return err
+	}
+
+	if n != 0 && n != 1 {
+		return errors.New("IntBool: got non 0 or 1 value")
+	}
+
+	*b = n == 1
+	return nil
 }

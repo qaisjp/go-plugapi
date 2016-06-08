@@ -128,11 +128,10 @@ func (plug *PlugDJ) sendSocketJSON(action string, data interface{}) error {
 }
 
 func (plug *PlugDJ) listen() {
-	wss := plug.wss
-	defer wss.Close()
+	defer plug.wss.Close()
 	defer close(plug.closer)
 	for {
-		_, data, err := wss.ReadMessage()
+		_, data, err := plug.wss.ReadMessage()
 		if err != nil {
 			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				plug.Log.Errorln("socket read error:", err)
@@ -177,5 +176,6 @@ func (plug *PlugDJ) listen() {
 				handleAction(plug, msg)
 			}(buf)
 		}
+
 	}
 }

@@ -20,9 +20,9 @@ type Room struct {
 		WelcomeMessage   string `json:"welcomemessage"` // the welcome message on entering
 	} `json:"meta"`
 	// Mutes interface{} `json:"mutes"`
-	Playback Playback `json:"playback"`
-	Role     int      `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
-	Users    []*User  `json:"users"`
+	Playback *Playback `json:"playback"`
+	Role     int       `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
+	Users    []*User   `json:"users"`
 	// Votes interface{} `json:"votes"`
 }
 
@@ -38,7 +38,7 @@ func gatherUsers(p *PlugDJ, users []int) []*User {
 	return results
 }
 
-func (p *PlugDJ) GetDJ() *User {
+func (p *PlugDJ) getDJ() *User {
 	r := p.Room
 
 	if r.Booth.CurrentDJ <= 0 {
@@ -49,11 +49,11 @@ func (p *PlugDJ) GetDJ() *User {
 	// TODO: What does cacheUser do here?
 	// (see room.js)
 
-	return p.GetUser(r.Booth.CurrentDJ)
+	return p.getUser(r.Booth.CurrentDJ)
 
 }
 
-func (p *PlugDJ) GetUser(id int) *User {
+func (p *PlugDJ) getUser(id int) *User {
 	r := p.Room
 
 	// Base case: is it ourself?
@@ -72,18 +72,6 @@ func (p *PlugDJ) GetUser(id int) *User {
 	return nil
 }
 
-func (p *PlugDJ) GetDJs() []*User {
+func (p *PlugDJ) getDJs() []*User {
 	return gatherUsers(p, p.Room.Booth.WaitingDJs)
-}
-
-func (p *PlugDJ) GetMedia() {
-
-}
-
-func (p *PlugDJ) GetStartTime() {
-
-}
-
-func (p *PlugDJ) GetHistoryID() {
-
 }
