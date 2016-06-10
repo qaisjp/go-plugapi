@@ -36,8 +36,11 @@ type PlugDJ struct {
 
 	// for events registered
 	eventFuncs map[Event]ProcessPayloadFunc
+
 	// for commands registered
-	commandFuncs map[string]CommandHandler
+	commandFuncs         map[string]CommandHandler
+	commandHandlerGlobal GlobalCommandHandler
+	commandData          map[string]interface{}
 }
 
 // Config is the configuration for logging into plug
@@ -71,10 +74,9 @@ func New(config Config) (*PlugDJ, error) {
 	}
 
 	plug := &PlugDJ{
-		config:       &config,
-		Log:          config.Log,
-		eventFuncs:   make(map[Event]ProcessPayloadFunc),
-		commandFuncs: make(map[string]CommandHandler),
+		config:     &config,
+		Log:        config.Log,
+		eventFuncs: make(map[Event]ProcessPayloadFunc),
 	}
 
 	// a closer so that we can close any goroutines we have created
@@ -261,6 +263,37 @@ func (plug *PlugDJ) RegisterCommands(fn CommandHandler, commands ...string) {
 	for _, cmd := range commands {
 		plug.commandFuncs[cmd] = fn
 	}
+}
+
+// RegisterCommands registers a function to several commands with attached data
+// Note: only one function / data can be registered to a single command - it will replace any existing handler.
+func (plug *PlugDJ) RegisterCommandData(data interface{}, fn CommandHandler, commands ...string) {
+	for _, cmd := range commands {
+		plug.commandFuncs[cmd] = fn
+		plug.commandData[cmd] = data
+	}
+}
+
+// ClearCommands clears certain commands, or all commands if true is passed first
+func (plug *PlugDJ) ClearCommands(all bool, commands ...string) {
+	if all {
+		// note: this is called on plugdj creation to init maps
+		plug.commandFuncs = make(map[string]CommandHandler)
+		plug.commandData = make(map[string]interface{})
+		return
+	}
+
+	for _, cmd := range commands {
+		delete(plug.commandFuncs, cmd)
+	}
+}
+
+// SetGlobalCommandHandler sets a handler for all commands
+// If the command has been caught by any other handler, the global command handler
+// will still be called, but with CommandData.Caught = true.
+func (plug *PlugDJ) SetGlobalCommandHandler(fn GlobalCommandHandler, data interface{}) {
+	plug.commandData["__global"] = data
+	plug.commandHandlerGlobal = fn
 }
 
 func (plug *PlugDJ) ModerateDeleteMessage(messageID string) error {

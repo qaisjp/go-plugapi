@@ -24,11 +24,20 @@ type AdvancePayload struct {
 }
 
 // CommandHandler is the structure of a function that can handle a chat command
-type CommandHandler func(data CommandData, command string, args ...string)
+type CommandHandler func(data CommandData, args ...string)
+
+// GlobalCommandHandler is the structure of a function that can handle any chat command
+// Return false to allow the command to execute. See data.Caught to see if the command exists
+type GlobalCommandHandler func(data CommandData, args ...string) bool
 
 // CommandData is used when receiving individual command events
 type CommandData struct {
 	Plug      *PlugDJ
 	User      *User
 	MessageID string
+	Command   string
+
+	GlobalData interface{} // extra helpful data (all commands)
+	Data       interface{} // extra helpful data (command only)
+	Caught     bool
 }

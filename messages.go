@@ -102,15 +102,27 @@ func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
 		args := strings.Split(raw.Message, " ")
 		cmd := args[0][1:]
 
-		if handler := plug.commandFuncs[cmd]; handler != nil {
-			data := CommandData{
-				Plug:      plug,
-				User:      user,
-				MessageID: raw.MessageID,
-			}
-
-			handler(data, cmd, args[1:]...)
+		handler := plug.commandFuncs[cmd]
+		data := CommandData{
+			Plug:       plug,
+			User:       user,
+			MessageID:  raw.MessageID,
+			Command:    cmd,
+			Data:       plug.commandData[cmd],
+			GlobalData: plug.commandData["__global"],
+			Caught:     handler != nil,
 		}
+
+		if handler := plug.commandHandlerGlobal; handler != nil {
+			if !handler(data, args[1:]...) {
+				return
+			}
+		}
+
+		if handler != nil {
+			handler(data, args[1:]...)
+		}
+
 		return
 	}
 
