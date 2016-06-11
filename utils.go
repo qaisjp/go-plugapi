@@ -68,8 +68,8 @@ type HistoryItem struct {
 type chatMessageType int
 
 const (
-	EmoteChatMessage chatMessageType = iota
-	RegularChatMessage
+	RegularChatMessage chatMessageType = iota
+	EmoteChatMessage
 )
 
 // List of individual REST endpoints

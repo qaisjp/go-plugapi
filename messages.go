@@ -97,38 +97,12 @@ func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
 	}
 
 	user := plug.getUser(raw.UserID)
-	if strings.Index(raw.Message, "!") == 0 && user != nil {
-		// split the message by spaces (includes command)
-		args := strings.Split(raw.Message, " ")
-		cmd := args[0][1:]
-
-		handler := plug.commandFuncs[cmd]
-		data := CommandData{
-			Plug:       plug,
-			User:       user,
-			MessageID:  raw.MessageID,
-			Command:    cmd,
-			Data:       plug.commandData[cmd],
-			GlobalData: plug.commandData["__global"],
-			Caught:     handler != nil,
-		}
-
-		if handler := plug.commandHandlerGlobal; handler != nil {
-			if !handler(data, args[1:]...) {
-				return
-			}
-		}
-
-		if handler != nil {
-			handler(data, args[1:]...)
-		}
-
-		return
-	}
 
 	payload := ChatPayload{
-		Message: raw.Message,
-		User:    user,
+		Message:   raw.Message,
+		MessageID: raw.MessageID,
+		User:      user,
+		// Type is added below
 	}
 
 	// If contains "/me" or "/em" at the front, make the type an EmoteChatMessage. Make it Regular otherwise.
