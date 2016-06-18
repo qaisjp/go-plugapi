@@ -73,6 +73,7 @@ func New(config Config) (*PlugDJ, error) {
 		config:     &config,
 		Log:        config.Log,
 		eventFuncs: make(map[Event]ProcessPayloadFunc),
+		Room:       &Room{},
 	}
 
 	// a closer so that we can close any goroutines we have created

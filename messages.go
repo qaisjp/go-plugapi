@@ -50,6 +50,7 @@ func handleAction(plug *PlugDJ, msg socketMessage) {
 	if ok {
 		// a handler exists, lets call it,
 		// but give it the param directly
+		plug.Log.WithFields(log.Fields{"action": msg.Action, "len": len(msg.Action)}).Debugln("action called")
 		handler(plug, msg.Parameter.(json.RawMessage))
 		return
 	}
@@ -120,6 +121,7 @@ func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
 }
 
 func handleAction_userLeave(plug *PlugDJ, msg json.RawMessage) {
+	plug.Log.Debugln("call leave")
 	uid := 0
 	if err := json.Unmarshal(msg, &uid); err != nil {
 		plug.Log.Warnln("could not unmarshal user leave", err)
@@ -127,10 +129,12 @@ func handleAction_userLeave(plug *PlugDJ, msg json.RawMessage) {
 
 	user := plug.Room.removeUser(uid)
 	if user == nil {
+		plug.Log.WithField("uid", uid).Warnln("Non existent user tried to leave")
 		return
 	}
 
 	payload := UserLeavePayload{*user}
+	plug.Log.Debugln("emit leave")
 	plug.emitEvent(UserLeaveEvent, payload)
 }
 
@@ -140,8 +144,11 @@ func handleAction_userJoin(plug *PlugDJ, msg json.RawMessage) {
 		plug.Log.Warnln("could not unmarshal user join", err)
 	}
 
+	plug.Log.Debugln("going to add user")
 	plug.Room.addUser(u)
+	plug.Log.Debugln("user added")
 
 	payload := UserJoinPayload{u}
+	plug.Log.Debugln("emit join")
 	plug.emitEvent(UserJoinEvent, payload)
 }
