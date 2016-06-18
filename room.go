@@ -25,14 +25,17 @@ type Room struct {
 	// Mutes interface{} `json:"mutes"`
 	Playback *Playback `json:"playback"`
 	Role     int       `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
-	Users    []*User   `json:"users"`
+	users    []User    `json:"users"`
 	// Votes interface{} `json:"votes"`
 }
 
-func gatherUsers(p *PlugDJ, users []int) []*User {
-	results := make([]*User, 0, len(users))
+func gatherUsers(r *Room, users []int) []User {
+	r.RLock()
+	defer r.RUnlock()
+
+	results := make([]User, 0, len(users))
 	for _, uid := range users {
-		for _, user := range p.Room.Users {
+		for _, user := range r.users {
 			if user.ID == uid {
 				results = append(results, user)
 			}
@@ -41,8 +44,8 @@ func gatherUsers(p *PlugDJ, users []int) []*User {
 	return results
 }
 
-func (p *PlugDJ) getDJ() *User {
-	r := p.Room
+func (r *Room) getDJ() *User {
+	r.RLock()
 
 	if r.Booth.CurrentDJ <= 0 {
 		return nil
@@ -52,22 +55,28 @@ func (p *PlugDJ) getDJ() *User {
 	// TODO: What does cacheUser do here?
 	// (see room.js)
 
-	return p.getUser(r.Booth.CurrentDJ)
+	dj := r.Booth.CurrentDJ
+
+	r.RUnlock()
+	return r.getUser(dj)
 
 }
 
-func (p *PlugDJ) getUser(id int) *User {
-	r := p.Room
+func (r *Room) getUser(id int) *User {
 
 	// Base case: is it ourself?
-	if id == p.User.ID {
-		return p.User
-	}
+	// TODO: Needs reference to self
+	// if id == p.User.ID {
+	// return p.User
+	// }
+
+	r.RLock()
+	defer r.RUnlock()
 
 	// Linear search for the user
-	for _, user := range r.Users {
+	for _, user := range r.users {
 		if user.ID == id {
-			return user
+			return &user
 		}
 	}
 
@@ -75,16 +84,19 @@ func (p *PlugDJ) getUser(id int) *User {
 	return nil
 }
 
-func (p *PlugDJ) getDJs() []*User {
-	return gatherUsers(p, p.Room.Booth.WaitingDJs)
+func (r *Room) getDJs() []User {
+	return gatherUsers(r, r.Booth.WaitingDJs)
 }
 
-func (p *PlugDJ) removeUser(id int) (u *User) {
+func (r *Room) removeUser(id int) (u *User) {
+	r.Lock()
+	defer r.Unlock()
+
 	index := -1
-	for i, user := range p.Room.Users {
+	for i, user := range r.users {
 		if user.ID == id {
 			index = i
-			u = user
+			u = &user
 			break
 		}
 	}
@@ -93,11 +105,21 @@ func (p *PlugDJ) removeUser(id int) (u *User) {
 		return nil
 	}
 
-	p.Room.Users = append(p.Room.Users[:index], p.Room.Users[index+1:]...)
+	r.users = append(r.users[:index], r.users[index+1:]...)
 	return
 }
 
-func (p *PlugDJ) addUser(u User) {
-	p.removeUser(u.ID)
-	p.Room.Users = append(p.Room.Users, &u)
+func (r *Room) addUser(u User) {
+	r.Lock()
+	defer r.Unlock()
+
+	r.removeUser(u.ID)
+	r.users = append(r.users, u)
+}
+
+func (r *Room) GetUsers() (u []User) {
+	r.RLock()
+	copy(u, r.users)
+	r.RUnlock()
+	return
 }

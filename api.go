@@ -203,11 +203,8 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	// locally because we need it later on here
 	room := data[0]
 
-	users := []User{}
-	for _, u := range room.Users {
-		users = append(users, *u)
-	}
-	fmt.Printf("Room data: %+v\n", users)
+	users := room.GetUsers()
+	fmt.Printf("\n\n\n\nRoom data\n\n\n\n%+v\n\n\n\n\n%+v", room, users)
 
 	// add the room to our obj
 	plug.Room = room
@@ -217,10 +214,10 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Now we need to emit an AdvanceEvent
 	plug.emitEvent(AdvanceEvent, AdvancePayload{
-		CurrentDJ: plug.getDJ(),
-		DJs:       plug.getDJs(),
+		CurrentDJ: room.getDJ(),
+		DJs:       room.getDJs(),
 		LastPlay:  nil,
-		Playback:  plug.Room.Playback,
+		Playback:  room.Playback,
 	})
 
 	// Retrieve our history

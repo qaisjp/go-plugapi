@@ -99,7 +99,7 @@ func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
 		return
 	}
 
-	user := plug.getUser(raw.UserID)
+	user := plug.Room.getUser(raw.UserID)
 
 	payload := ChatPayload{
 		Message:   raw.Message,
@@ -125,7 +125,7 @@ func handleAction_userLeave(plug *PlugDJ, msg json.RawMessage) {
 		plug.Log.Warnln("could not unmarshal user leave", err)
 	}
 
-	user := plug.removeUser(uid)
+	user := plug.Room.removeUser(uid)
 	if user == nil {
 		return
 	}
@@ -140,7 +140,7 @@ func handleAction_userJoin(plug *PlugDJ, msg json.RawMessage) {
 		plug.Log.Warnln("could not unmarshal user join", err)
 	}
 
-	plug.addUser(u)
+	plug.Room.addUser(u)
 
 	payload := UserJoinPayload{u}
 	plug.emitEvent(UserJoinEvent, payload)

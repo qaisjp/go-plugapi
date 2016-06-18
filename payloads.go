@@ -15,7 +15,7 @@ type ChatPayload struct {
 
 type AdvancePayload struct {
 	CurrentDJ *User `json:"c"` // TODO: Write unmarshaler for User, with reference to original plug obj??
-	DJs       []*User
+	DJs       []User
 	LastPlay  *struct {
 		DJ    *User
 		Media Media
