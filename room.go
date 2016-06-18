@@ -24,8 +24,14 @@ type Room struct {
 	} `json:"meta"`
 	// Mutes interface{} `json:"mutes"`
 	Playback *Playback `json:"playback"`
-	Role     int       `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
-	users    []User    `json:"users"`
+	users    []*User   // Not caught by json because it's unexported
+	// Votes interface{} `json:"votes"`
+}
+
+type roomJson struct {
+	*Room
+	Role  int     `json:"role"` // OUR ROLE IN THE ROOM << DO NOT USE
+	Users []*User `json:"users"`
 	// Votes interface{} `json:"votes"`
 }
 
@@ -37,7 +43,7 @@ func gatherUsers(r *Room, users []int) []User {
 	for _, uid := range users {
 		for _, user := range r.users {
 			if user.ID == uid {
-				results = append(results, user)
+				results = append(results, *user)
 			}
 		}
 	}
@@ -76,7 +82,7 @@ func (r *Room) getUser(id int) *User {
 	// Linear search for the user
 	for _, user := range r.users {
 		if user.ID == id {
-			return &user
+			return user
 		}
 	}
 
@@ -96,7 +102,7 @@ func (r *Room) removeUser(id int) (u *User) {
 	for i, user := range r.users {
 		if user.ID == id {
 			index = i
-			u = &user
+			u = user
 			break
 		}
 	}
@@ -114,12 +120,22 @@ func (r *Room) addUser(u User) {
 	defer r.Unlock()
 
 	r.removeUser(u.ID)
-	r.users = append(r.users, u)
+	r.users = append(r.users, &u)
 }
 
 func (r *Room) GetUsers() (u []User) {
 	r.RLock()
-	copy(u, r.users)
+	for _, user := range r.users {
+		u = append(u, *user)
+	}
 	r.RUnlock()
 	return
+}
+
+// Warning: This isn't copied
+func (r *Room) SetUsers(u []*User) {
+	r.Lock()
+	defer r.Unlock()
+
+	r.users = u
 }

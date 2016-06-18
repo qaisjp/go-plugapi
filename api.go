@@ -188,7 +188,7 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	}
 
 	// Now we need to load ALL information about our current room state
-	var data []*Room
+	var data []*roomJson
 	err = plug.GetData(RoomStateEndpoint, &data, nil)
 	if err != nil {
 		return err
@@ -201,8 +201,8 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Now we're sure the room exists, store it
 	// locally because we need it later on here
-	room := data[0]
-
+	room := data[0].Room
+	room.SetUsers(data[0].Users)
 	users := room.GetUsers()
 	fmt.Printf("\n\n\n\nRoom data\n\n\n\n%+v\n\n\n\n\n%+v", room, users)
 
@@ -210,7 +210,7 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	plug.Room = room
 
 	// and the now add the user's role
-	plug.User.Role = room.Role
+	plug.User.Role = data[0].Role
 
 	// Now we need to emit an AdvanceEvent
 	plug.emitEvent(AdvanceEvent, AdvancePayload{

@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
 	// log "github.com/Sirupsen/logrus"
 	"fmt"
 	"io"
@@ -134,6 +134,7 @@ func (plug *PlugDJ) Get(endpoint string) (*http.Response, error) {
 
 	// If the status code is not 200, error away
 	if resp.StatusCode != 200 {
+		quickread(resp.Body)
 		resp.Body.Close()
 		return nil, ErrUnknownResponse{resp, endpoint}
 	}
@@ -158,7 +159,7 @@ func handleResponse(resp *http.Response, data interface{}, meta interface{}) err
 	// err := json.Unmarshal(quickread(resp.Body), envelope)
 	err := json.NewDecoder(resp.Body).Decode(envelope)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "could not decode response")
 	}
 
 	if envelope.Status != "ok" {
