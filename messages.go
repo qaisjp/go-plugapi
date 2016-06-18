@@ -34,9 +34,12 @@ func init() {
 	// string found in socketMessage.Action
 	actions["ack"] = handleAction_ack
 	actions["chat"] = handleAction_chat
+	actions["userLeave"] = handleAction_userLeave
+	actions["userJoin"] = handleAction_userJoin
 
 	// Ignoring
 	actions["chatDelete"] = handleAction_IGNORER
+	actions["earn"] = handleAction_IGNORER
 }
 
 // Base action that executes the correct handler
@@ -114,4 +117,31 @@ func handleAction_chat(plug *PlugDJ, msg json.RawMessage) {
 	}
 
 	plug.emitEvent(ChatEvent, payload)
+}
+
+func handleAction_userLeave(plug *PlugDJ, msg json.RawMessage) {
+	uid := 0
+	if err := json.Unmarshal(msg, &uid); err != nil {
+		plug.Log.Warnln("could not unmarshal user leave", err)
+	}
+
+	user := plug.removeUser(uid)
+	if user == nil {
+		return
+	}
+
+	payload := UserLeavePayload{*user}
+	plug.emitEvent(UserLeaveEvent, payload)
+}
+
+func handleAction_userJoin(plug *PlugDJ, msg json.RawMessage) {
+	u := User{}
+	if err := json.Unmarshal(msg, &u); err != nil {
+		plug.Log.Warnln("could not unmarshal user join", err)
+	}
+
+	plug.addUser(u)
+
+	payload := UserJoinPayload{u}
+	plug.emitEvent(UserJoinEvent, payload)
 }

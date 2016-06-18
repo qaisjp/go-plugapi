@@ -1,8 +1,11 @@
 package plugapi
 
+import "sync"
+
 // Room contains metadata about the room
 // TODO: Unexport this.
 type Room struct {
+	sync.RWMutex
 	Booth Booth `json:"booth"`
 	// FX interface{} `json:"fx"`
 	// Grabs interface{} `json:"grabs"`
@@ -74,4 +77,27 @@ func (p *PlugDJ) getUser(id int) *User {
 
 func (p *PlugDJ) getDJs() []*User {
 	return gatherUsers(p, p.Room.Booth.WaitingDJs)
+}
+
+func (p *PlugDJ) removeUser(id int) (u *User) {
+	index := -1
+	for i, user := range p.Room.Users {
+		if user.ID == id {
+			index = i
+			u = user
+			break
+		}
+	}
+
+	if index == -1 {
+		return nil
+	}
+
+	p.Room.Users = append(p.Room.Users[:index], p.Room.Users[index+1:]...)
+	return
+}
+
+func (p *PlugDJ) addUser(u User) {
+	p.removeUser(u.ID)
+	p.Room.Users = append(p.Room.Users, &u)
 }

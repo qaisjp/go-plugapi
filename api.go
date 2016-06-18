@@ -4,8 +4,9 @@ import (
 	"golang.org/x/net/publicsuffix"
 	// "io/ioutil"
 	// "crypto/sha512"
-	"errors"
+	"github.com/pkg/errors"
 	// "encoding/hex"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"net/http"
@@ -157,7 +158,7 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Now we need to make a socket connection
 	if err := plug.connectSocket(); err != nil {
-		return err
+		return errors.Wrap(err, "could not connect to socket server")
 	}
 
 	selfInfo := []struct {
@@ -178,7 +179,7 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	plug.Log.Debugln("Joining room...")
 	resp, err := plug.Post(RoomJoinEndpoint, map[string]string{"slug": slug})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "could not join room")
 	}
 
 	defer resp.Body.Close()
@@ -202,6 +203,12 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 	// locally because we need it later on here
 	room := data[0]
 
+	users := []User{}
+	for _, u := range room.Users {
+		users = append(users, *u)
+	}
+	fmt.Printf("Room data: %+v\n", users)
+
 	// add the room to our obj
 	plug.Room = room
 
@@ -218,6 +225,9 @@ func (plug *PlugDJ) JoinRoom(slug string) error {
 
 	// Retrieve our history
 	err = plug.GetData(HistoryEndpoint, &plug.History, nil)
+	if err != nil {
+		return err
+	}
 
 	// Now we need to emit a RoomJoinEvent
 	plug.emitEvent(RoomJoinEvent, room.Meta.Name)

@@ -23,3 +23,6 @@ type AdvancePayload struct {
 	}
 	Playback *Playback
 }
+
+type UserJoinPayload struct{ User }
+type UserLeavePayload struct{ User }

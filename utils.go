@@ -9,9 +9,9 @@ import (
 )
 
 type User struct {
-	ID       int
-	Role     int
-	Username string
+	ID       int    `json:"id"`
+	Role     int    `json:"role"`
+	Username string `json:"username"`
 }
 
 // Booth is the data about the current queue
